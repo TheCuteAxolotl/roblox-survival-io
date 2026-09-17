@@ -6,6 +6,16 @@ RiftRunData.RallySeconds = 8
 RiftRunData.ExtractAfterStage = 3
 RiftRunData.IntermissionSeconds = 8
 
+RiftRunData.Modifiers = {
+	Standard = { Label = "STABLE RIFT", Count = 1, Health = 1, Damage = 1, Speed = 1, Reward = 1 },
+	Swarm = { Label = "SWARM RIFT", Count = 1.45, Health = 0.88, Damage = 0.95, Speed = 1.08, Reward = 1.22 },
+	Juggernaut = { Label = "JUGGERNAUT RIFT", Count = 0.82, Health = 1.62, Damage = 1.12, Speed = 0.9, Reward = 1.30 },
+	Frenzy = { Label = "FRENZY RIFT", Count = 1.1, Health = 1.05, Damage = 1.22, Speed = 1.22, Reward = 1.28 },
+	Golden = { Label = "GOLDEN RIFT", Count = 1.08, Health = 1.12, Damage = 1.06, Speed = 1, Reward = 1.55 },
+	Unstable = { Label = "UNSTABLE RIFT", Count = 1.25, Health = 1.28, Damage = 1.18, Speed = 1.12, Reward = 1.48 },
+}
+RiftRunData.ModifierOrder = { "Standard", "Swarm", "Juggernaut", "Frenzy", "Golden", "Unstable" }
+
 RiftRunData.Upgrades = {
 	Fury = {
 		Label = "FURY",
