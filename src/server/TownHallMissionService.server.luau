@@ -343,13 +343,8 @@ local function clearLocation(center)
 end
 
 local function chooseTownCenter()
-	for _, candidate in {
-		Vector3.new(0, 0, -155), Vector3.new(0, 0, 155),
-		Vector3.new(-105, 0, -175), Vector3.new(105, 0, 175),
-		Vector3.new(115, 0, -185), Vector3.new(-115, 0, 185),
-	} do
-		if clearLocation(candidate) then return candidate end
-	end
+	-- V3 uses a consistent hub so new players immediately know where runs, contracts
+	-- and progression live. The spacing guard reserves this footprint first.
 	return Vector3.new(0, 0, -155)
 end
 
