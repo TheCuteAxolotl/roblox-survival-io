@@ -1,27 +1,21 @@
 local MonetizationConfig = {}
 
--- Replace every Id = 0 with the real Roblox product/pass ID after publishing.
--- RobuxLabel is only a design/display value; Roblox controls the real storefront price.
-MonetizationConfig.DeveloperProducts = {
-	GoldPouch = { Id = 0, RobuxLabel = 99, Grant = { Gold = 650 } },
-	GoldChest = { Id = 0, RobuxLabel = 249, Grant = { Gold = 1900 } },
-	GoldVault = { Id = 0, RobuxLabel = 499, Grant = { Gold = 4500 } },
-	GoldTreasury = { Id = 0, RobuxLabel = 999, Grant = { Gold = 10500 } },
-	GoldFortune = { Id = 0, RobuxLabel = 1499, Grant = { Gold = 18000 } },
-}
+-- V2 monetization rule: purchases should not sell combat dominance.
+-- Keep IDs at 0 until the experience is published and the matching Roblox
+-- passes/products actually exist.
+MonetizationConfig.DeveloperProducts = {}
 
 MonetizationConfig.GamePasses = {
 	InventoryInsurance = {
 		Id = 0,
 		RobuxLabel = 99,
-		Description = "Keep your 10-slot survival inventory on death. Wood, stone and carried resource counters still drop.",
+		Description = "Convenience only: keep the items in your 10-slot bag on death. Carried wood, stone and food resources can still drop.",
 	},
-	ExplorerStarter = { Id = 0, RobuxLabel = 249, PremiumKit = "ExplorerKit" },
-	HunterStarter = { Id = 0, RobuxLabel = 499, PremiumKit = "HunterKit" },
-	BuilderStarter = { Id = 0, RobuxLabel = 699, PremiumKit = "BuilderKit" },
-	AlchemistStarter = { Id = 0, RobuxLabel = 999, PremiumKit = "AlchemistKit" },
-	DragonbornStarter = { Id = 0, RobuxLabel = 1499, PremiumKit = "DragonbornKit" },
-	VIP = { Id = 0, RobuxLabel = 599 },
+	VIP = {
+		Id = 0,
+		RobuxLabel = 399,
+		Description = "Supporter status reserved for cosmetic identity perks, titles and future non-combat extras.",
+	},
 }
 
 return MonetizationConfig
