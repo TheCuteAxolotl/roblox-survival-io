@@ -99,7 +99,7 @@ end
 local function placementClear(player, data, position, yaw)
 	local half = Config.WorldSize / 2
 	if math.abs(position.X) + data.Footprint.X / 2 + 4 > half or math.abs(position.Z) + data.Footprint.Z / 2 + 4 > half then return false, "Too close to the edge of the world." end
-	if math.abs(position.Z) < Config.RiverHalfWidth + data.Footprint.Z / 2 + 5 then return false, "Build away from the river." end
+	if not data.AllowRiver and math.abs(position.Z) < Config.RiverHalfWidth + data.Footprint.Z / 2 + 5 then return false, "Build away from the river." end
 	local cf = CFrame.new(position.X, position.Y + data.Footprint.Y / 2, position.Z) * CFrame.Angles(0, yaw, 0)
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -121,7 +121,44 @@ local function buildVisual(structureName, position, yaw)
 	local stone = Color3.fromRGB(103, 106, 111)
 	local metal = Color3.fromRGB(81, 84, 91)
 
-	if structureName == "WoodFloor" then
+	if structureName == "StoneFloor" then
+		local base = makePart(model, "StoneFloor", Vector3.new(12,1,12), cf * CFrame.new(0,0.5,0), stone, Enum.Material.Slate)
+		model.PrimaryPart = base
+		for _, z in { -4, 0, 4 } do makePart(model, "StoneSeam", Vector3.new(11.6,0.18,0.35), cf * CFrame.new(0,1.02,z), metal, Enum.Material.Slate, false) end
+	elseif structureName == "HalfWall" then
+		local base = makePart(model, "HalfWall", Vector3.new(10,5,1.4), cf * CFrame.new(0,2.5,0), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		makePart(model, "HalfWallCap", Vector3.new(10.6,0.5,1.8), cf * CFrame.new(0,5.15,0), dark, Enum.Material.Wood, false)
+	elseif structureName == "WindowWall" then
+		local base = makePart(model, "WindowSill", Vector3.new(12,2.1,1.6), cf * CFrame.new(0,1.05,0), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		makePart(model, "WindowTop", Vector3.new(12,2.2,1.6), cf * CFrame.new(0,8.9,0), wood, Enum.Material.WoodPlanks)
+		for _, x in { -5,5 } do makePart(model, "WindowSide", Vector3.new(2,6.8,1.6), cf * CFrame.new(x,5,0), wood, Enum.Material.WoodPlanks) end
+	elseif structureName == "LanternPost" then
+		local base = makePart(model, "LanternBase", Vector3.new(2.5,0.7,2.5), cf * CFrame.new(0,0.35,0), stone, Enum.Material.Slate)
+		model.PrimaryPart = base
+		makePart(model, "LanternPole", Vector3.new(0.7,7,0.7), cf * CFrame.new(0,3.8,0), dark, Enum.Material.Wood)
+		local lamp = makePart(model, "LanternGlow", Vector3.new(1.8,1.8,1.8), cf * CFrame.new(0,7.6,0), Color3.fromRGB(255,176,83), Enum.Material.Neon, false)
+		lamp.Shape = Enum.PartType.Ball
+		local light = Instance.new("PointLight") light.Range = 28 light.Brightness = 2.4 light.Shadows = true light.Parent = lamp
+	elseif structureName == "Bridge" then
+		local base = makePart(model, "BridgeDeck", Vector3.new(10,1,22), cf * CFrame.new(0,0.8,0), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		for _, x in { -4.6,4.6 } do
+			makePart(model, "BridgeRail", Vector3.new(0.45,2.2,22), cf * CFrame.new(x,2.1,0), dark, Enum.Material.Wood)
+		end
+		for z = -9, 9, 3 do makePart(model, "BridgeCrossbeam", Vector3.new(10.5,0.28,0.55), cf * CFrame.new(0,1.35,z), dark, Enum.Material.Wood, false) end
+	elseif structureName == "StoneRoof" then
+		local base = makePart(model, "StoneRoof", Vector3.new(12,1,12), cf * CFrame.new(0,0.5,0), stone, Enum.Material.Slate)
+		model.PrimaryPart = base
+		for _, x in { -5.4,5.4 } do makePart(model, "RoofEdge", Vector3.new(0.55,1.4,12), cf * CFrame.new(x,0.5,0), metal, Enum.Material.Slate) end
+	elseif structureName == "Banner" then
+		local base = makePart(model, "BannerBase", Vector3.new(2.5,0.7,2.5), cf * CFrame.new(0,0.35,0), stone, Enum.Material.Slate)
+		model.PrimaryPart = base
+		makePart(model, "BannerPole", Vector3.new(0.55,10,0.55), cf * CFrame.new(0,5,0), dark, Enum.Material.Wood)
+		local cloth = makePart(model, "BannerCloth", Vector3.new(4.2,5.5,0.3), cf * CFrame.new(2.2,7,0), Color3.fromRGB(114,45,55), Enum.Material.Fabric, false)
+		cloth.CanQuery = false
+	elseif structureName == "WoodFloor" then
 		local base = makePart(model, "Floor", Vector3.new(12, 1, 12), cf * CFrame.new(0, 0.5, 0), wood, Enum.Material.WoodPlanks)
 		model.PrimaryPart = base
 		for _, z in { -4, 0, 4 } do makePart(model, "FloorBrace", Vector3.new(11.5, 0.35, 0.45), cf * CFrame.new(0, 1.05, z), dark, Enum.Material.Wood) end
@@ -268,4 +305,4 @@ task.spawn(function()
 	end
 end)
 
-print("[AdvancedStructures] Modular floors, roofs, fences, doorways, stairs, platforms and defensive structures online.")
+print("[AdvancedStructures] 18-piece architecture kit online: wood/stone floors, walls, roofs, bridges, lighting and defenses.")
