@@ -13,6 +13,7 @@ SurvivalItemData.RarityColors = {
 SurvivalItemData.Items = {
 	Web = { Label = "Spider Web", Rarity = "Common", Stack = 20, Description = "Sticky web used for rope, traps, and potions." },
 	Venom = { Label = "Spider Venom", Rarity = "Uncommon", Stack = 12, Description = "Dangerous alchemy ingredient dropped by spiders and scorpions." },
+	Food = { Label = "Food", Rarity = "Common", Stack = 40, Description = "Simple ready-to-eat food gathered from animals and the wild.", Use = "Food", Hunger = 30, Heal = 6 },
 	RawMeat = { Label = "Raw Meat", Rarity = "Common", Stack = 12, Description = "Cook it before eating for the best result." },
 	RawBeef = { Label = "Raw Beef", Rarity = "Common", Stack = 12, Description = "Fresh beef from wild cattle. Cook it at a campfire." },
 	Hide = { Label = "Animal Hide", Rarity = "Common", Stack = 16, Description = "Useful for bottles, armor, pouches, and survival gear." },
@@ -80,7 +81,11 @@ end
 
 function SurvivalItemData.StackLimit(itemName)
 	local item = SurvivalItemData.Items[itemName]
-	return item and item.Stack or 1
+	if not item then return 1 end
+	-- Equipment and unique collectibles remain one-per-slot; normal inventory
+	-- materials and consumables use the new universal 40-item stack size.
+	if item.Stack == 1 then return 1 end
+	return 40
 end
 
 return SurvivalItemData
