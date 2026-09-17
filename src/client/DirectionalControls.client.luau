@@ -1,5 +1,4 @@
 local ContextActionService = game:GetService("ContextActionService")
-local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -8,6 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 local ItemData = require(ReplicatedStorage.Shared.ItemData)
 
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
 local action = remotes:WaitForChild("Action")
 local directional = remotes:WaitForChild("DirectionalAction")
@@ -24,7 +24,7 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "DirectionalControlsHUD"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 42
-gui.Parent = player:WaitForChild("PlayerGui")
+gui.Parent = playerGui
 
 local function style(button, radius)
 	button.BackgroundColor3 = Color3.fromRGB(31, 31, 35)
@@ -80,7 +80,7 @@ hint.TextXAlignment = Enum.TextXAlignment.Right
 hint.Parent = gui
 
 local function hideLegacyControls()
-	local legacy = player.PlayerGui:FindFirstChild("ActionAssistHUD")
+	local legacy = playerGui:FindFirstChild("ActionAssistHUD")
 	if not legacy then return end
 	for _, name in { "AutoAction", "MobileAction", "MobileRotate" } do
 		local object = legacy:FindFirstChild(name)
@@ -140,8 +140,10 @@ end
 
 local function pointerOverButton()
 	local mouse = player:GetMouse()
-	for _, object in GuiService:GetGuiObjectsAtPosition(mouse.X, mouse.Y) do
-		if (object:IsA("TextButton") or object:IsA("ImageButton") or object:IsA("TextBox")) and object.Visible then return true end
+	for _, object in playerGui:GetGuiObjectsAtPosition(mouse.X, mouse.Y) do
+		if (object:IsA("TextButton") or object:IsA("ImageButton") or object:IsA("TextBox")) and object.Visible then
+			return true
+		end
 	end
 	return false
 end
