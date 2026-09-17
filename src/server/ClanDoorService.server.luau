@@ -7,15 +7,12 @@ local Workspace = game:GetService("Workspace")
 local ExpansionData = require(ReplicatedStorage.Shared.ExpansionData)
 local ItemData = require(ReplicatedStorage.Shared.ItemData)
 local PlayerService = require(script.Parent.PlayerService)
+local ClanService = require(script.Parent.ClanService)
+ClanService.Init()
 
--- Register expansion structures on the server so existing structure damage/salvage logic recognizes them.
 ItemData.Items.ClanDoor = ItemData.Items.ClanDoor or {
-	Category = "Build", Label = "Fortified Door", Cost = ExpansionData.DoorCost, Health = 220,
+	Category = "Build", Label = "Fortified Door", Cost = ExpansionData.DoorCost, Health = 240,
 	PreviewSize = Vector3.new(6, 12, 1.2), PreviewY = 6,
-}
-ItemData.Items.SpawnPad = ItemData.Items.SpawnPad or {
-	Category = "Build", Label = "Spawn Pad", Cost = ExpansionData.SpawnPadCost, Health = 180,
-	PreviewSize = Vector3.new(8, 1, 8), PreviewY = 0.5, BuildLimit = 1,
 }
 
 local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
@@ -29,11 +26,7 @@ local getExpansionState = remotes:FindFirstChild("GetExpansionState") or Instanc
 getExpansionState.Name = "GetExpansionState"
 getExpansionState.Parent = remotes
 
-local clans = {}
-local playerClan = {}
 local doorAccess = {}
-local spawnChoice = {}
-local spawnPads = {}
 
 local function part(parent, name, size, cf, color, material)
 	local p = Instance.new("Part")
@@ -49,71 +42,53 @@ local function part(parent, name, size, cf, color, material)
 	return p
 end
 
-local function clanKey(name)
-	return string.lower((name or ""):gsub("^%s+", ""):gsub("%s+$", ""))
-end
-
-local function clanDisplayFor(player)
-	local key = playerClan[player.UserId]
-	local clan = key and clans[key]
-	return clan and clan.Name or nil
-end
-
-local function isClanOwner(player)
-	local key = playerClan[player.UserId]
-	local clan = key and clans[key]
-	return clan and clan.OwnerUserId == player.UserId or false
-end
-
 local function stateFor(player)
-	local profile = PlayerService.Get(player)
-	local age = profile and profile.Age or 1
-	local choice = spawnChoice[player.UserId]
 	return {
-		Clan = clanDisplayFor(player),
-		ClanOwner = isClanOwner(player),
+		ClanTag = ClanService.GetTag(player),
+		ClanOwner = ClanService.IsOwner(player),
 		DoorAccess = doorAccess[player.UserId] or "OWNER",
-		SpawnPadUnlocked = choice == "UNLOCKED",
-		SpawnChoiceAvailable = age >= ExpansionData.SpawnUnlockAge and choice == nil,
-		SpawnPadPlaced = spawnPads[player.UserId] and spawnPads[player.UserId].Parent ~= nil or false,
 	}
 end
 
 local function sendState(player, message)
-	if player.Parent then
+	if player and player.Parent then
 		local payload = stateFor(player)
 		payload.Message = message
 		expansionState:FireClient(player, payload)
 	end
 end
 
-local function sendClanMembers(key, message)
-	local clan = clans[key]
-	if not clan then return end
-	for userId in clan.Members do
-		local member = Players:GetPlayerByUserId(userId)
-		if member then sendState(member, message) end
-	end
+local function refreshTag(player)
+	local character = player.Character
+	local head = character and character:FindFirstChild("Head")
+	if not head then return end
+	local old = head:FindFirstChild("ClanTagBillboard")
+	if old then old:Destroy() end
+	local tag = ClanService.GetTag(player)
+	if not tag then return end
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "ClanTagBillboard"
+	gui.Size = UDim2.fromOffset(90, 24)
+	gui.StudsOffset = Vector3.new(0, 2.8, 0)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 90
+	gui.Parent = head
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = `[{tag}]`
+	text.TextColor3 = Color3.fromRGB(232, 212, 114)
+	text.TextStrokeTransparency = 0.45
+	text.Font = Enum.Font.GothamBold
+	text.TextScaled = true
+	text.Parent = gui
 end
 
-local function cleanName(raw)
-	if type(raw) ~= "string" then return nil end
-	local value = raw:gsub("^%s+", ""):gsub("%s+$", "")
-	if #value < 3 or #value > 16 then return nil end
-	if not value:match("^[%w _%-]+$") then return nil end
-	return value
-end
-
-local function sameClan(aUserId, bUserId)
-	local a = playerClan[aUserId]
-	return a ~= nil and a == playerClan[bUserId]
-end
-
-local function canOpenDoor(player, ownerUserId)
-	if player.UserId == ownerUserId then return true end
+local function canOpenDoor(visitor, ownerUserId)
+	if visitor.UserId == ownerUserId then return true end
 	local mode = doorAccess[ownerUserId] or "OWNER"
 	if mode == "PUBLIC" then return true end
-	if mode == "CLAN" and sameClan(player.UserId, ownerUserId) then return true end
+	if mode == "CLAN" then return ClanService.SameClan(visitor.UserId, ownerUserId) end
 	return false
 end
 
@@ -150,9 +125,8 @@ local function clearDoorPosition(player, position, yaw)
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = player.Character and { player.Character } or {}
-	for _, hit in Workspace:GetPartBoundsInBox(cf, Vector3.new(5.82, 11.8, 1.02), params) do
-		if CollectionService:HasTag(hit, "ResourceCore") then return false end
-		if CollectionService:HasTag(hit, "PlayerBuild") then return false end
+	for _, hit in Workspace:GetPartBoundsInBox(cf, Vector3.new(5.8, 11.8, 1.02), params) do
+		if CollectionService:HasTag(hit, "ResourceCore") or CollectionService:HasTag(hit, "PlayerBuild") then return false end
 	end
 	return true
 end
@@ -166,7 +140,7 @@ local function createDoor(player)
 	local position, yaw = wallEndpointSnap(raw, 6)
 	if (Vector3.new(root.Position.X, 0, root.Position.Z) - position).Magnitude > 26 then return false, "Place the door closer to you." end
 	if not clearDoorPosition(player, position, yaw) then return false, "That door spot is blocked." end
-	if not PlayerService.Spend(player, ExpansionData.DoorCost) then return false, "Need 25 wood + 5 stone." end
+	if not PlayerService.Spend(player, ExpansionData.DoorCost) then return false, "Need 35 wood + 12 stone." end
 
 	local model = Instance.new("Model")
 	model.Name = "ClanDoor"
@@ -174,32 +148,21 @@ local function createDoor(player)
 	model:SetAttribute("OwnerUserId", player.UserId)
 	model:SetAttribute("BuildType", "ClanDoor")
 	model:SetAttribute("SnapWidth", 6)
-	model:SetAttribute("Health", 220)
-	model:SetAttribute("MaxHealth", 220)
+	model:SetAttribute("Health", 240)
+	model:SetAttribute("MaxHealth", 240)
 	model:SetAttribute("Open", false)
 	local baseCF = CFrame.new(position.X, 0, position.Z) * CFrame.Angles(0, math.rad(yaw), 0)
 	local anchor = part(model, "DoorAnchor", Vector3.new(6, 12, 1.2), baseCF * CFrame.new(0, 6, 0), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
-	anchor.Transparency = 1
-	anchor.CanCollide = false
-	anchor.CanQuery = false
-	model.PrimaryPart = anchor
+	anchor.Transparency = 1 anchor.CanCollide = false anchor.CanQuery = false model.PrimaryPart = anchor
 	part(model, "LeftPost", Vector3.new(0.65, 12, 1.4), baseCF * CFrame.new(-2.7, 6, 0), Color3.fromRGB(111, 77, 49), Enum.Material.WoodPlanks)
 	part(model, "RightPost", Vector3.new(0.65, 12, 1.4), baseCF * CFrame.new(2.7, 6, 0), Color3.fromRGB(111, 77, 49), Enum.Material.WoodPlanks)
 	part(model, "Top", Vector3.new(6, 0.7, 1.4), baseCF * CFrame.new(0, 11.65, 0), Color3.fromRGB(111, 77, 49), Enum.Material.WoodPlanks)
 	local slab = part(model, "Door", Vector3.new(4.8, 10.8, 0.8), baseCF * CFrame.new(0, 5.4, 0), Color3.fromRGB(139, 91, 54), Enum.Material.WoodPlanks)
-	local closedCF = slab.CFrame
-	local openCF = closedCF + Vector3.new(0, 11, 0)
+	local closedCF, openCF = slab.CFrame, slab.CFrame + Vector3.new(0, 11, 0)
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Open"
-	prompt.ObjectText = "Fortified Door"
-	prompt.MaxActivationDistance = 12
-	prompt.HoldDuration = 0.1
-	prompt.Parent = slab
+	prompt.ActionText = "Open" prompt.ObjectText = "Fortified Door" prompt.MaxActivationDistance = 12 prompt.HoldDuration = 0.1 prompt.Parent = slab
 	prompt.Triggered:Connect(function(visitor)
-		if not canOpenDoor(visitor, player.UserId) then
-			sendState(visitor, "Door locked: you do not have permission.")
-			return
-		end
+		if not canOpenDoor(visitor, player.UserId) then sendState(visitor, "Door locked: permission denied.") return end
 		local opening = model:GetAttribute("Open") ~= true
 		model:SetAttribute("Open", opening)
 		slab.CanCollide = not opening
@@ -210,118 +173,28 @@ local function createDoor(player)
 	return true, "Fortified door placed."
 end
 
-local function createSpawnPad(player)
-	if spawnChoice[player.UserId] ~= "UNLOCKED" then return false, "Spawn Pad is not unlocked." end
-	if spawnPads[player.UserId] and spawnPads[player.UserId].Parent then return false, "You already have a spawn pad." end
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	local arena = Workspace:FindFirstChild("SurvivalArena")
-	if not root or not arena then return false, "World is not ready." end
-	if not PlayerService.Spend(player, ExpansionData.SpawnPadCost) then return false, "Need 45 wood + 30 stone." end
-	local pos = root.Position + Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z) * 8
-	pos = Vector3.new(math.floor(pos.X + 0.5), 0, math.floor(pos.Z + 0.5))
-	local model = Instance.new("Model")
-	model.Name = "SpawnPad"
-	model.Parent = arena
-	model:SetAttribute("OwnerUserId", player.UserId)
-	model:SetAttribute("BuildType", "SpawnPad")
-	model:SetAttribute("Health", 180)
-	model:SetAttribute("MaxHealth", 180)
-	local pad = part(model, "Pad", Vector3.new(8, 0.8, 8), CFrame.new(pos + Vector3.new(0, 0.4, 0)), Color3.fromRGB(78, 138, 174), Enum.Material.Metal)
-	model.PrimaryPart = pad
-	local glow = part(model, "Glow", Vector3.new(6.6, 0.16, 6.6), CFrame.new(pos + Vector3.new(0, 0.88, 0)), Color3.fromRGB(87, 218, 255), Enum.Material.Neon)
-	glow.CanCollide = false
-	tagBuild(model)
-	spawnPads[player.UserId] = model
-	return true, "Spawn pad placed. You will respawn here while it survives."
-end
-
-local function createClan(player, rawName)
-	if playerClan[player.UserId] then return false, "Leave your current clan first." end
-	local name = cleanName(rawName)
-	if not name then return false, "Clan name must be 3–16 letters/numbers/spaces." end
-	local key = clanKey(name)
-	if clans[key] then return false, "That clan name already exists." end
-	clans[key] = { Name = name, OwnerUserId = player.UserId, Members = { [player.UserId] = true } }
-	playerClan[player.UserId] = key
-	return true, `Created clan {name}.`
-end
-
-local function joinClan(player, rawName)
-	if playerClan[player.UserId] then return false, "Leave your current clan first." end
-	local key = clanKey(rawName)
-	local clan = clans[key]
-	if not clan then return false, "Clan not found in this server." end
-	clan.Members[player.UserId] = true
-	playerClan[player.UserId] = key
-	sendClanMembers(key, `{player.Name} joined {clan.Name}.`)
-	return true, `Joined {clan.Name}.`
-end
-
-local function leaveClan(player)
-	local key = playerClan[player.UserId]
-	local clan = key and clans[key]
-	if not clan then return false, "You are not in a clan." end
-	clan.Members[player.UserId] = nil
-	playerClan[player.UserId] = nil
-	if clan.OwnerUserId == player.UserId then
-		local newOwner = next(clan.Members)
-		if newOwner then clan.OwnerUserId = newOwner else clans[key] = nil end
-	end
-	if clans[key] then sendClanMembers(key, `${player.Name} left the clan.`) end
-	return true, "Left clan."
-end
-
 getExpansionState.OnServerInvoke = stateFor
 
 expansionAction.OnServerEvent:Connect(function(player, actionName, payload)
 	local ok, message = false, "Unknown action."
-	if actionName == "CreateClan" then ok, message = createClan(player, payload)
-	elseif actionName == "JoinClan" then ok, message = joinClan(player, payload)
-	elseif actionName == "LeaveClan" then ok, message = leaveClan(player)
+	if actionName == "CreateClan" then ok, message = ClanService.Create(player, payload)
+	elseif actionName == "JoinClan" then ok, message = ClanService.Join(player, payload)
+	elseif actionName == "LeaveClan" then ok, message = ClanService.Leave(player)
 	elseif actionName == "SetDoorAccess" then
 		local mode = tostring(payload)
 		if table.find(ExpansionData.DoorAccessModes, mode) then doorAccess[player.UserId] = mode ok, message = true, `Door access: {mode}` end
-	elseif actionName == "PlaceDoor" then ok, message = createDoor(player)
-	elseif actionName == "UnlockSpawnPad" then
-		local profile = PlayerService.Get(player)
-		if profile and profile.Age >= ExpansionData.SpawnUnlockAge and spawnChoice[player.UserId] == nil then spawnChoice[player.UserId] = "UNLOCKED" ok, message = true, "Spawn Pad unlocked." end
-	elseif actionName == "SkipSpawnPad" then
-		local profile = PlayerService.Get(player)
-		if profile and profile.Age >= ExpansionData.SpawnUnlockAge and spawnChoice[player.UserId] == nil then spawnChoice[player.UserId] = "SKIPPED" ok, message = true, "Spawn Pad skipped for this run." end
-	elseif actionName == "PlaceSpawnPad" then ok, message = createSpawnPad(player)
-	end
+	elseif actionName == "PlaceDoor" then ok, message = createDoor(player) end
+	refreshTag(player)
 	sendState(player, message)
 end)
 
-local function hookCharacter(player, character)
-	task.delay(0.35, function()
-		local pad = spawnPads[player.UserId]
-		if not pad or not pad.Parent or not pad.PrimaryPart or not character.Parent then return end
-		character:PivotTo(pad.PrimaryPart.CFrame + Vector3.new(0, 4, 0))
-	end)
-end
-
 local function setupPlayer(player)
-	doorAccess[player.UserId] = doorAccess[player.UserId] or "OWNER"
-	player.CharacterAdded:Connect(function(character) hookCharacter(player, character) end)
-	if player.Character then hookCharacter(player, player.Character) end
-	task.delay(1, function() if player.Parent then sendState(player) end end)
+	doorAccess[player.UserId] = "OWNER"
+	player.CharacterAdded:Connect(function()
+		task.delay(1, function() if player.Parent then refreshTag(player) sendState(player) end end)
+	end)
+	task.delay(1.5, function() if player.Parent then refreshTag(player) sendState(player) end end)
 end
-
 Players.PlayerAdded:Connect(setupPlayer)
 for _, player in Players:GetPlayers() do setupPlayer(player) end
-
-Players.PlayerRemoving:Connect(function(player)
-	local key = playerClan[player.UserId]
-	if key and clans[key] then
-		clans[key].Members[player.UserId] = nil
-		if clans[key].OwnerUserId == player.UserId then
-			local replacement = next(clans[key].Members)
-			if replacement then clans[key].OwnerUserId = replacement else clans[key] = nil end
-		end
-	end
-	playerClan[player.UserId] = nil
-	doorAccess[player.UserId] = nil
-	spawnChoice[player.UserId] = nil
-	spawnPads[player.UserId] = nil
-end)
+Players.PlayerRemoving:Connect(function(player) doorAccess[player.UserId] = nil end)
