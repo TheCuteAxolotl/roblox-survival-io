@@ -10,7 +10,7 @@ local MonetizationConfig = require(ReplicatedStorage.Shared.MonetizationConfig)
 local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 
 local InventoryService = {}
-InventoryService.SLOT_COUNT = 10
+InventoryService.SLOT_COUNT = 34
 InventoryService.Changed = Instance.new("BindableEvent")
 
 local inventories = {}
