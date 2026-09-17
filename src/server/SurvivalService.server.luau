@@ -669,7 +669,7 @@ local function createWaterWorld()
 		local pos = Vector3.new(math.random(-half, half), 0, math.random(-half, half))
 		if math.abs(pos.Z) < Config.RiverHalfWidth + 60 then pos = Vector3.new(pos.X, 0, pos.Z + (pos.Z >= 0 and 110 or -110)) end
 		local radius = math.random(7, 13)
-		local puddle = part(arena, `Puddle{i}`, Vector3.new(radius * 2, 0.22, radius * 2), CFrame.new(pos + Vector3.new(0, 0.11, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(74, 151, 204), Enum.Material.Glass)
+		local puddle = part(arena, `Puddle{i}`, Vector3.new(0.22, radius * 2, radius * 2), CFrame.new(pos + Vector3.new(0, 0.11, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(74, 151, 204), Enum.Material.Glass)
 		puddle.Shape = Enum.PartType.Cylinder
 		puddle.Transparency = 0.28
 		puddle.CanCollide = false
