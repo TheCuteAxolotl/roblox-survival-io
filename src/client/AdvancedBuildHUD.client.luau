@@ -43,7 +43,7 @@ local title = Instance.new("TextLabel")
 title.Position = UDim2.fromOffset(16,12)
 title.Size = UDim2.new(1,-64,0,28)
 title.BackgroundTransparency = 1
-title.Text = "ADVANCED STRUCTURES"
+title.Text = "BASE BUILDING"
 title.TextColor3 = Color3.fromRGB(220,232,211)
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 17
@@ -54,7 +54,7 @@ local sub = Instance.new("TextLabel")
 sub.Position = UDim2.fromOffset(16,42)
 sub.Size = UDim2.new(1,-32,0,34)
 sub.BackgroundTransparency = 1
-sub.Text = "Face the direction you want to build, then choose a structure. Placement happens in front of you."
+sub.Text = "Face where you want to build. Floors, walls, stairs, roofs, lights and defenses can be mixed into a real base."
 sub.TextColor3 = Color3.fromRGB(171,171,180)
 sub.Font = Enum.Font.Gotham
 sub.TextSize = 10
@@ -85,10 +85,14 @@ status.TextSize = 10
 status.TextWrapped = true
 status.Parent = panel
 
-local list = Instance.new("Frame")
+local list = Instance.new("ScrollingFrame")
 list.Position = UDim2.fromOffset(14,84)
 list.Size = UDim2.new(1,-28,1,-128)
 list.BackgroundTransparency = 1
+list.BorderSizePixel = 0
+list.ScrollBarThickness = 5
+list.AutomaticCanvasSize = Enum.AutomaticSize.Y
+list.CanvasSize = UDim2.new()
 list.Parent = panel
 local layout = Instance.new("UIListLayout") layout.Padding = UDim.new(0,7) layout.Parent = list
 
