@@ -1,6 +1,7 @@
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local MonetizationConfig = require(ReplicatedStorage.Shared.MonetizationConfig)
 local player = Players.LocalPlayer
@@ -21,8 +22,10 @@ end
 
 local open = Instance.new("TextButton")
 open.AnchorPoint = Vector2.new(1, 0)
-open.Position = UDim2.new(1, -18, 0, 68)
-open.Size = UDim2.fromOffset(112, 38)
+-- Keep the premium store beside the normal SHOP button instead of covering INVENTORY.
+-- On touch screens keep it slightly narrower so both top-right buttons fit comfortably.
+open.Position = UDim2.new(1, -138, 0, 18)
+open.Size = UDim2.fromOffset(UserInputService.TouchEnabled and 104 or 112, 42)
 open.BackgroundColor3 = Color3.fromRGB(54, 88, 62)
 open.TextColor3 = Color3.fromRGB(245, 245, 245)
 open.Text = "R$ STORE"
