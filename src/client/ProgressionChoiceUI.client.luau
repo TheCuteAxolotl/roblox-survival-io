@@ -39,7 +39,7 @@ local title = Instance.new("TextLabel")
 title.Position = UDim2.fromOffset(20, 16)
 title.Size = UDim2.new(1, -40, 0, 42)
 title.BackgroundTransparency = 1
-title.Text = "AGE UP — CHOOSE ONE"
+title.Text = "FORGE LEVEL UP — CHOOSE ONE"
 title.TextColor3 = Color3.fromRGB(255, 226, 117)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 26
@@ -50,7 +50,7 @@ local subtitle = Instance.new("TextLabel")
 subtitle.Position = UDim2.fromOffset(24, 58)
 subtitle.Size = UDim2.new(1, -48, 0, 34)
 subtitle.BackgroundTransparency = 1
-subtitle.Text = "Your choice changes your loadout path. Some weapons are terminal while others unlock later upgrades."
+subtitle.Text = "Pick one permanent unlock for this level. Choose around the way you actually want to survive."
 subtitle.TextColor3 = Color3.fromRGB(188, 188, 198)
 subtitle.Font = Enum.Font.Gotham
 subtitle.TextSize = 13
@@ -111,9 +111,9 @@ local function buildCard(itemName, order)
 	card.BackgroundColor3 = Color3.fromRGB(36, 36, 42)
 	card.ZIndex = 4
 	card.Parent = list
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
-	corner.Parent = card
+	local cardCorner = Instance.new("UICorner")
+	cardCorner.CornerRadius = UDim.new(0, 14)
+	cardCorner.Parent = card
 
 	local name = Instance.new("TextLabel")
 	name.Position = UDim2.fromOffset(12, 10)
@@ -157,7 +157,7 @@ local function buildCard(itemName, order)
 	choose.Size = UDim2.new(1, -24, 0, 34)
 	choose.BackgroundColor3 = Color3.fromRGB(238, 238, 241)
 	choose.TextColor3 = Color3.fromRGB(20, 20, 23)
-	choose.Text = "CHOOSE"
+	choose.Text = "UNLOCK"
 	choose.Font = Enum.Font.GothamBold
 	choose.TextSize = 12
 	choose.ZIndex = 5
@@ -166,7 +166,7 @@ local function buildCard(itemName, order)
 	buttonCorner.CornerRadius = UDim.new(0, 9)
 	buttonCorner.Parent = choose
 	choose.Activated:Connect(function()
-		choose.Text = "UNLOCKING..."
+		choose.Text = "FORGING..."
 		choose.Active = false
 		action:FireServer("ChooseUpgrade", itemName)
 	end)
@@ -183,21 +183,22 @@ local function render(profile)
 	shade.Visible = true
 	if currentSignature == signature then return end
 	currentSignature = signature
-	title.Text = `AGE {pending.Age} — CHOOSE ONE`
+	title.Text = `FORGE LEVEL {pending.Age} — CHOOSE ONE`
 	clearCards()
 	for index, itemName in pending.Options do buildCard(itemName, index) end
 end
 
--- Disable the original two-card age choice overlay created by GameController.
+-- Disable the older upgrade overlay created by GameController. The profile field
+-- is still called Age internally for save compatibility, but players only see Forge Level.
 task.spawn(function()
 	local survivalGui = player:WaitForChild("PlayerGui"):WaitForChild("SurvivalHUD", 10)
 	if not survivalGui then return end
 	for _ = 1, 100 do
 		for _, descendant in survivalGui:GetDescendants() do
-			if descendant:IsA("TextLabel") and string.find(descendant.Text, "AGE UP", 1, true) then
+			if descendant:IsA("TextLabel") and (string.find(descendant.Text, "AGE UP", 1, true) or string.find(descendant.Text, "AGE ", 1, true)) then
 				local oldPanel = descendant.Parent
 				local oldShade = oldPanel and oldPanel.Parent
-				if oldShade and oldShade:IsA("GuiObject") then
+				if oldShade and oldShade:IsA("GuiObject") and oldShade ~= survivalGui then
 					oldShade.Visible = false
 					oldShade:GetPropertyChangedSignal("Visible"):Connect(function()
 						if oldShade.Visible then task.defer(function() oldShade.Visible = false end) end
