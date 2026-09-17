@@ -21,6 +21,14 @@ local HAVEN_SAFE_RADIUS = 125
 local FOREST_HALF_X = 150
 local FOREST_HALF_Z = 125
 
+local SPECIAL_REGIONS = {
+	Highlands = { Center = Vector3.new(-720, 0, 650), HalfX = 170, HalfZ = 145 },
+	Dunes = { Center = Vector3.new(720, 0, 650), HalfX = 170, HalfZ = 145 },
+	Marsh = { Center = Vector3.new(-720, 0, -650), HalfX = 170, HalfZ = 145 },
+	Grove = { Center = Vector3.new(720, 0, -650), HalfX = 170, HalfZ = 145 },
+	Crystal = { Center = Vector3.new(690, 0, 610), HalfX = 105, HalfZ = 90 },
+}
+
 local function arena()
 	return Workspace:FindFirstChild("SurvivalArena")
 end
@@ -50,6 +58,14 @@ local function randomPoint(biome)
 			math.random(math.floor(FOREST_CENTER.X - FOREST_HALF_X), math.floor(FOREST_CENTER.X + FOREST_HALF_X)),
 			3,
 			math.random(math.floor(FOREST_CENTER.Z - FOREST_HALF_Z), math.floor(FOREST_CENTER.Z + FOREST_HALF_Z))
+		)
+	end
+	local special = SPECIAL_REGIONS[biome]
+	if special then
+		return Vector3.new(
+			math.random(math.floor(special.Center.X - special.HalfX), math.floor(special.Center.X + special.HalfX)),
+			3,
+			math.random(math.floor(special.Center.Z - special.HalfZ), math.floor(special.Center.Z + special.HalfZ))
 		)
 	end
 	local xMin, xMax = biomeXRange(biome)
@@ -248,14 +264,51 @@ local function scorpion(model, root, data)
 	wedge(model, root, "Stinger", Vector3.new(0.7, 1.3, 0.8) * s, CFrame.new(0, 3.1 * s, 5.0 * s) * CFrame.Angles(math.rad(125), 0, 0), dark)
 end
 
+local function golem(model, root, data)
+	local s, c = data.Scale or 1, data.Color
+	local dark = c:Lerp(Color3.new(0,0,0), 0.22)
+	local glow = c:Lerp(Color3.fromRGB(108, 202, 255), 0.55)
+	local torso = part(model, root, "StoneTorso", Vector3.new(4.4, 4.8, 3.6) * s, CFrame.new(0, 1.0 * s, 0), c, nil, Enum.Material.Slate)
+	local head = part(model, root, "StoneHead", Vector3.new(3.2, 2.8, 3.0) * s, CFrame.new(0, 4.35 * s, -0.35 * s), dark, nil, Enum.Material.Slate)
+	for _, side in { -1, 1 } do
+		part(model, root, "StoneArm", Vector3.new(1.45, 5.0, 1.45) * s, CFrame.new(side * 3.0 * s, 1.1 * s, 0), c, nil, Enum.Material.Slate)
+		part(model, root, "StoneFist", Vector3.new(2.1, 1.7, 2.1) * s, CFrame.new(side * 3.0 * s, -1.6 * s, -0.15 * s), dark, nil, Enum.Material.Slate)
+		part(model, root, "StoneLeg", Vector3.new(1.6, 3.5, 1.8) * s, CFrame.new(side * 1.35 * s, -2.5 * s, 0.3 * s), dark, nil, Enum.Material.Slate)
+		oval(model, root, "GlowEye", Vector3.new(0.42,0.42,0.22) * s, CFrame.new(side * 0.65 * s, 4.55 * s, -1.9 * s), glow, Enum.Material.Neon)
+	end
+	oval(model, root, "Core", Vector3.new(1.1,1.1,0.5) * s, CFrame.new(0, 1.0 * s, -1.95 * s), glow, Enum.Material.Neon)
+end
+
+local function mammoth(model, root, data)
+	local s, c = data.Scale or 1, data.Color
+	local dark = c:Lerp(Color3.new(0,0,0), 0.18)
+	local ivory = Color3.fromRGB(235, 224, 194)
+	oval(model, root, "Body", Vector3.new(5.8, 4.5, 7.2) * s, CFrame.new(0, 1.2 * s, 0.4 * s), c)
+	oval(model, root, "Head", Vector3.new(4.0, 3.8, 3.7) * s, CFrame.new(0, 2.2 * s, -4.2 * s), c)
+	for _, side in { -1, 1 } do
+		oval(model, root, "Ear", Vector3.new(1.8, 2.4, 0.7) * s, CFrame.new(side * 2.15 * s, 2.55 * s, -4.1 * s), dark)
+		cylinder(model, root, "Tusk", 3.8 * s, 0.34 * s, CFrame.new(side * 1.15 * s, 0.7 * s, -6.0 * s) * CFrame.Angles(0, 0, math.rad(side * 24)), ivory)
+	end
+	for _, x in { -1.65, 1.65 } do
+		for _, z in { -1.9, 2.0 } do
+			cylinder(model, root, "Leg", 3.6 * s, 0.95 * s, CFrame.new(x * s, -1.6 * s, z * s) * CFrame.Angles(0,0,math.rad(90)), dark)
+		end
+	end
+	cylinder(model, root, "Trunk", 4.4 * s, 0.72 * s, CFrame.new(0, 0.0 * s, -6.0 * s) * CFrame.Angles(0, 0, math.rad(78)), dark)
+	eyes(model, root, 0.95, 2.8, -5.55, s)
+end
+
 local function buildVisual(model, root, mobName, data)
-	if mobName == "Wolf" or mobName == "SnowWolf" or mobName == "DireWolf" then canine(model, root, data, mobName == "DireWolf")
-	elseif mobName == "Deer" then deer(model, root, data)
-	elseif mobName == "Boar" then boar(model, root, data)
-	elseif mobName == "WildCattle" then cattle(model, root, data)
-	elseif mobName == "SnowBear" or mobName == "ForestBear" then bear(model, root, data)
-	elseif data.Archetype == "Spider" then spider(model, root, data, mobName == "BroodSpider")
-	elseif data.Archetype == "Scorpion" then scorpion(model, root, data)
+	local archetype = data.Archetype
+	if mobName == "Wolf" or mobName == "SnowWolf" or mobName == "DireWolf" or archetype == "Canine" then canine(model, root, data, mobName == "DireWolf")
+	elseif mobName == "Deer" or archetype == "Deer" then deer(model, root, data)
+	elseif mobName == "Boar" or archetype == "Boar" then boar(model, root, data)
+	elseif mobName == "WildCattle" or archetype == "Cattle" then cattle(model, root, data)
+	elseif mobName == "SnowBear" or mobName == "ForestBear" or archetype == "Bear" then bear(model, root, data)
+	elseif archetype == "Spider" then spider(model, root, data, mobName == "BroodSpider")
+	elseif archetype == "Scorpion" then scorpion(model, root, data)
+	elseif archetype == "Golem" then golem(model, root, data)
+	elseif archetype == "Mammoth" then mammoth(model, root, data)
 	else canine(model, root, data, false) end
 	model:SetAttribute("VisualStyle", "WildforgeLowPoly")
 end
@@ -461,7 +514,7 @@ local function wander(model, record, now)
 	if now >= record.NextWander then
 		record.NextWander = now + math.random(3, 7)
 		local angle = math.random() * math.pi * 2
-		local radius = math.random(10, data.Biome == "Forest" and 24 or 32)
+		local radius = math.random(10, (data.Biome == "Forest" or SPECIAL_REGIONS[data.Biome]) and 28 or 36)
 		record.WanderTarget = record.Home + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 	end
 	local hum = model:FindFirstChildOfClass("Humanoid")
