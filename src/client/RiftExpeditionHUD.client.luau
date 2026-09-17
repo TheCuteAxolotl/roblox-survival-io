@@ -293,7 +293,7 @@ local function render(state)
 	if rally then
 		title.Text = "RIFT RALLY"
 		status.Text = string.format("Starting in %ds  •  %d player%s ready", state.RallyRemaining or 0, state.PartySize or 0, (state.PartySize or 0) == 1 and "" or "s")
-		sub.Text = "Friends can use the same gate before the countdown ends."
+		sub.Text = string.format("%s  •  Friends can join at the same gate.", state.ModifierLabel or "STABLE RIFT")
 	elseif inRun then
 		title.Text = string.format("RIFT // STAGE %d OF %d", state.Stage or 0, RiftData.MaxStages)
 		status.Text = string.format("%s  •  %d ENEMIES", state.StageLabel or "", state.LiveEnemies or 0)
@@ -304,7 +304,7 @@ local function render(state)
 			sub.Text = "DOWNED • wait for a revive or Second Wind."
 			sub.TextColor3 = Color3.fromRGB(255, 130, 135)
 		else
-			sub.Text = string.format("Party %d  •  powers change every run", state.PartySize or 1)
+			sub.Text = string.format("%s  •  PARTY %d", state.ModifierLabel or "STABLE RIFT", state.PartySize or 1)
 			sub.TextColor3 = Color3.fromRGB(174, 174, 188)
 		end
 
