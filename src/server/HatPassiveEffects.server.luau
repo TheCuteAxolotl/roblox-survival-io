@@ -1,6 +1,9 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PlayerService = require(script.Parent.PlayerService)
+local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
+local stateChanged = remotes:WaitForChild("StateChanged")
 
 local passiveTimers = {}
 
@@ -35,6 +38,11 @@ task.spawn(function()
 				if state.Elapsed >= passiveSeconds then
 					state.Elapsed = 0
 					PlayerService.Add(player, { Food = passiveFood })
+					stateChanged:FireClient(player, {
+						Profile = PlayerService.GetPublic(player),
+						Message = `Forager Cap: +{passiveFood} food`,
+						FX = { Kind = "Hat" },
+					})
 				end
 			else
 				passiveTimers[player] = nil
