@@ -1,3 +1,4 @@
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,67 +14,19 @@ local hotbar = gui:WaitForChild("Hotbar")
 
 local currentProfile = nil
 local selectedItem = nil
+local orderedUnlocks = {}
+local lastSignature = nil
 
-local primaryNames = {
-	Axe = true, Sword = true, Pickaxe = true, Spear = true, Daggers = true,
-	Bat = true, Stick = true, Katana = true, BattleAxe = true,
-}
-
-local secondaryNames = {
-	WoodenShield = true, StoneShield = true, HuntingBow = true, GreatHammer = true,
-	McGrabby = true, Shotgun = true, RepeaterCrossbow = true, Musket = true,
-}
-
-local millNames = { Windmill = true, RapidMill = true, PowerMill = true }
-
-local primaryPriority = { "Katana", "BattleAxe", "Sword", "Pickaxe", "Spear", "Daggers", "Bat", "Stick", "Axe" }
-local secondaryPriority = { "Musket", "Shotgun", "RepeaterCrossbow", "WoodenShield", "StoneShield", "HuntingBow", "GreatHammer", "McGrabby" }
-local millPriority = { "RapidMill", "PowerMill", "Windmill" }
-
-local function firstUnlocked(unlocks, priority)
-	for _, itemName in priority do
-		if unlocks[itemName] == true then return itemName end
+local function unlockSignature(profile)
+	if not profile or type(profile.Unlocks) ~= "table" then return "" end
+	local parts = {}
+	for _, itemName in ItemData.HotbarOrder do
+		if profile.Unlocks[itemName] == true then table.insert(parts, itemName) end
 	end
-	return nil
+	return table.concat(parts, "|")
 end
 
-local function findGroupButton(group)
-	for _, child in hotbar:GetChildren() do
-		if child:IsA("TextButton") and group[child.Name] then return child end
-	end
-	return nil
-end
-
-local function labelButton(button, itemName)
-	local item = ItemData.Items[itemName]
-	if not item then return end
-	local slot = math.max(1, button.LayoutOrder)
-	button.Name = itemName
-	button.Text = slot <= 9 and `{slot}  {string.upper(item.Label)}` or string.upper(item.Label)
-end
-
-local function wireReplacementButton(button, targetItem)
-	button:SetAttribute("ProgressionSelectTarget", targetItem)
-	if button:GetAttribute("ProgressionReplacementWired") then return end
-	button:SetAttribute("ProgressionReplacementWired", true)
-	button.Activated:Connect(function()
-		local target = button:GetAttribute("ProgressionSelectTarget")
-		if type(target) == "string" then action:FireServer("SelectItem", target) end
-	end)
-end
-
-local function syncGroup(group, priority)
-	if not currentProfile or type(currentProfile.Unlocks) ~= "table" then return nil end
-	local activeItem = firstUnlocked(currentProfile.Unlocks, priority)
-	if not activeItem then return nil end
-	local button = findGroupButton(group)
-	if not button then return activeItem end
-	wireReplacementButton(button, activeItem)
-	if button.Name ~= activeItem then labelButton(button, activeItem) end
-	return activeItem
-end
-
-local function styleSelection()
+local function styleButtons()
 	for _, child in hotbar:GetChildren() do
 		if child:IsA("TextButton") then
 			local active = child.Name == selectedItem
@@ -83,32 +36,79 @@ local function styleSelection()
 	end
 end
 
-local function syncHotbar()
+local function rebuild()
 	if not currentProfile or type(currentProfile.Unlocks) ~= "table" then return end
-	local activePrimary = syncGroup(primaryNames, primaryPriority)
-	local activeSecondary = syncGroup(secondaryNames, secondaryPriority)
-	local activeMill = syncGroup(millNames, millPriority)
-
-	if selectedItem and primaryNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activePrimary then
-		action:FireServer("SelectItem", activePrimary)
-	elseif selectedItem and secondaryNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activeSecondary then
-		action:FireServer("SelectItem", activeSecondary)
-	elseif selectedItem and millNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activeMill then
-		action:FireServer("SelectItem", activeMill)
+	local signature = unlockSignature(currentProfile)
+	if signature == lastSignature then
+		styleButtons()
+		return
 	end
+	lastSignature = signature
 
-	task.defer(styleSelection)
+	for _, child in hotbar:GetChildren() do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	orderedUnlocks = {}
+
+	for _, itemName in ItemData.HotbarOrder do
+		if currentProfile.Unlocks[itemName] == true then
+			local item = ItemData.Items[itemName]
+			if item then
+				table.insert(orderedUnlocks, itemName)
+				local slot = #orderedUnlocks
+				local button = Instance.new("TextButton")
+				button.Name = itemName
+				button.LayoutOrder = slot
+				button.Size = UDim2.fromOffset(112, 56)
+				button.BackgroundColor3 = Color3.fromRGB(42, 42, 46)
+				button.TextColor3 = Color3.fromRGB(245, 245, 245)
+				button.TextWrapped = true
+				button.Font = Enum.Font.GothamBold
+				button.TextSize = 12
+				button.Text = slot <= 9 and `{slot}  {string.upper(item.Label)}` or string.upper(item.Label)
+				button.Parent = hotbar
+				local corner = Instance.new("UICorner")
+				corner.CornerRadius = UDim.new(0, 10)
+				corner.Parent = button
+				button.Activated:Connect(function()
+					action:FireServer("SelectItem", itemName)
+				end)
+			end
+		end
+	end
+	styleButtons()
 end
+
+local numberKeyNames = {
+	Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four, Enum.KeyCode.Five,
+	Enum.KeyCode.Six, Enum.KeyCode.Seven, Enum.KeyCode.Eight, Enum.KeyCode.Nine,
+}
+
+local function hotbarKeyAction(_, inputState, inputObject)
+	if inputState ~= Enum.UserInputState.Begin then return Enum.ContextActionResult.Sink end
+	for index, key in numberKeyNames do
+		if inputObject.KeyCode == key then
+			local itemName = orderedUnlocks[index]
+			if itemName then action:FireServer("SelectItem", itemName) end
+			break
+		end
+	end
+	return Enum.ContextActionResult.Sink
+end
+
+ContextActionService:BindActionAtPriority(
+	"SurvivalHotbarNumbers",
+	hotbarKeyAction,
+	false,
+	3000,
+	table.unpack(numberKeyNames)
+)
 
 stateChanged.OnClientEvent:Connect(function(payload)
 	if type(payload) ~= "table" then return end
 	if type(payload.Profile) == "table" then currentProfile = payload.Profile end
 	if type(payload.SelectedItem) == "string" then selectedItem = payload.SelectedItem end
-	task.defer(syncHotbar)
-end)
-
-hotbar.ChildAdded:Connect(function()
-	task.defer(syncHotbar)
+	task.defer(rebuild)
 end)
 
 task.spawn(function()
@@ -116,7 +116,7 @@ task.spawn(function()
 	if ok and type(initial) == "table" then
 		currentProfile = initial.Profile
 		selectedItem = initial.SelectedItem
-		task.wait(0.1)
-		syncHotbar()
+		task.wait(0.12)
+		rebuild()
 	end
 end)
