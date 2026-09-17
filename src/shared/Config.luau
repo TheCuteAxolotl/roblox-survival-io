@@ -23,6 +23,6 @@ Config.PlayerDamage = 22
 Config.BuildDamage = 28
 Config.FoodHeal = 28
 
-Config.AgeThresholds = { 0, 100, 250, 500, 900, 1400 }
+Config.AgeThresholds = { 0, 100, 250, 500, 900, 1400, 2100, 3000 }
 
 return Config
