@@ -1,6 +1,61 @@
 local AdvancedStructureData = {}
 
 AdvancedStructureData.Structures = {
+	WoodFloor = {
+		Label = "Wood Floor",
+		Description = "A clean 12x12 foundation tile for houses, camps and courtyards.",
+		Cost = { Wood = 14, Stone = 0 },
+		Health = 180,
+		MinForge = 1,
+		Limit = 36,
+		Footprint = Vector3.new(12, 1, 12),
+	},
+	Fence = {
+		Label = "Wood Fence",
+		Description = "Cheap boundary piece for yards, farms and animal-safe camp edges.",
+		Cost = { Wood = 9, Stone = 0 },
+		Health = 120,
+		MinForge = 1,
+		Limit = 30,
+		Footprint = Vector3.new(10, 4, 1.2),
+	},
+	DoorFrame = {
+		Label = "Doorway",
+		Description = "A proper walk-through entrance that connects wall sections.",
+		Cost = { Wood = 18, Stone = 2 },
+		Health = 210,
+		MinForge = 1,
+		Limit = 12,
+		Footprint = Vector3.new(12, 10, 2),
+	},
+	Stairs = {
+		Label = "Wood Stairs",
+		Description = "Raised steps for platforms, towers and multi-level camps.",
+		Cost = { Wood = 22, Stone = 0 },
+		Health = 190,
+		MinForge = 1,
+		Limit = 16,
+		Footprint = Vector3.new(8, 7, 12),
+	},
+	RaisedPlatform = {
+		Label = "Raised Platform",
+		Description = "A tall deck for lookout areas, elevated bases and connecting stairs.",
+		Cost = { Wood = 38, Stone = 6 },
+		Health = 300,
+		MinForge = 2,
+		Limit = 12,
+		Footprint = Vector3.new(12, 8, 12),
+	},
+	WoodRoof = {
+		Label = "Wood Roof",
+		Description = "A roof tile placed ten studs above ground for simple enclosed houses.",
+		Cost = { Wood = 18, Stone = 0 },
+		Health = 160,
+		MinForge = 2,
+		Limit = 30,
+		Footprint = Vector3.new(12, 1, 12),
+		PlacementY = 10,
+	},
 	Barricade = {
 		Label = "Heavy Barricade",
 		Description = "A low, durable defensive barrier for tightening a camp perimeter.",
@@ -51,6 +106,9 @@ AdvancedStructureData.Structures = {
 	},
 }
 
-AdvancedStructureData.Order = { "Barricade", "WarBrazier", "Watchtower", "StoneGate", "BallistaTower" }
+AdvancedStructureData.Order = {
+	"WoodFloor", "Fence", "DoorFrame", "Stairs", "RaisedPlatform", "WoodRoof",
+	"Barricade", "WarBrazier", "Watchtower", "StoneGate", "BallistaTower",
+}
 
 return AdvancedStructureData
