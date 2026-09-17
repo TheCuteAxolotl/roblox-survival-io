@@ -54,6 +54,7 @@ eatHint.TextXAlignment = Enum.TextXAlignment.Left
 eatHint.Parent = gui
 
 local foodPriority = {
+	"Food",
 	"CookedBeef",
 	"TrailRation",
 	"BoneBroth",
@@ -63,12 +64,12 @@ local foodPriority = {
 
 local function bestFoodSlot()
 	for _, wanted in foodPriority do
-		for index = 1, 10 do
+		for index = 1, 34 do
 			local slot = inventory[index]
 			if slot and slot.Item == wanted and (slot.Amount or 0) > 0 then return index, wanted end
 		end
 	end
-	for index = 1, 10 do
+	for index = 1, 34 do
 		local slot = inventory[index]
 		local data = slot and SurvivalItemData.Items[slot.Item]
 		if data and (data.Use == "Food" or data.Use == "Meal") then return index, slot.Item end
@@ -93,7 +94,7 @@ eatButton.Activated:Connect(function()
 	if slot then
 		survivalAction:FireServer("UseSlot", slot)
 	else
-		eatHint.Text = "No prepared food in your 10-slot backpack"
+		eatHint.Text = "No prepared food in your 34-slot backpack"
 		task.delay(2, function()
 			if eatHint.Parent then eatHint.Text = "Uses the best meal in your backpack" end
 		end)
