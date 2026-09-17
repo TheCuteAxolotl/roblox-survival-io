@@ -1,4 +1,5 @@
 local CollectionService = game:GetService("CollectionService")
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -21,6 +22,10 @@ remotes.Parent = ReplicatedStorage
 local action = Instance.new("RemoteEvent")
 action.Name = "Action"
 action.Parent = remotes
+
+local secondaryFire = Instance.new("RemoteEvent")
+secondaryFire.Name = "SecondaryFire"
+secondaryFire.Parent = remotes
 
 local stateChanged = Instance.new("RemoteEvent")
 stateChanged.Name = "StateChanged"
@@ -93,6 +98,44 @@ local function waitForProfile(player)
 	return false
 end
 
+local function selectedShield(player)
+	local name = selectedItems[player]
+	local item = name and ItemData.Items[name]
+	if item and item.Kind == "Shield" and PlayerService.HasUnlock(player, name) then return item end
+	return nil
+end
+
+local function applyShieldReduction(victim, damage, ranged)
+	local shield = selectedShield(victim)
+	if not shield then return damage end
+	local block = ranged and (shield.RangedBlockPercent or shield.BlockPercent or 0) or (shield.BlockPercent or 0)
+	return math.max(0, math.floor(damage * (1 - math.clamp(block, 0, 0.9)) + 0.5))
+end
+
+local function applyKnockback(attacker, victimCharacter, amount)
+	if not amount or amount <= 0 then return end
+	local attackerRoot = attacker.Character and attacker.Character:FindFirstChild("HumanoidRootPart")
+	local victimRoot = victimCharacter and victimCharacter:FindFirstChild("HumanoidRootPart")
+	if not attackerRoot or not victimRoot then return end
+	local flat = Vector3.new(victimRoot.Position.X - attackerRoot.Position.X, 0, victimRoot.Position.Z - attackerRoot.Position.Z)
+	if flat.Magnitude < 0.01 then return end
+	victimRoot.AssemblyLinearVelocity += flat.Unit * amount + Vector3.new(0, math.min(18, amount * 0.18), 0)
+end
+
+local function stealGold(attacker, victim, percent)
+	if not percent or percent <= 0 then return 0 end
+	local victimProfile = PlayerService.Get(victim)
+	if not victimProfile then return 0 end
+	local held = math.floor(victimProfile.Gold or 0)
+	if held <= 0 then return 0 end
+	local amount = math.max(1, math.floor(held * percent))
+	amount = math.min(amount, held)
+	PlayerService.Add(victim, { Gold = -amount })
+	PlayerService.Add(attacker, { Gold = amount })
+	sendState(victim, `Mc Grabby stole {amount} gold from you!`, { Kind = "GoldStolen" })
+	return amount
+end
+
 local function applyCharacterSetup(player, character)
 	local humanoid = character:WaitForChild("Humanoid", 8)
 	if not humanoid then return end
@@ -117,9 +160,7 @@ end
 local function setupPlayer(player)
 	selectedItems[player] = nil
 	task.spawn(function()
-		if waitForProfile(player) then
-			selectedItems[player] = defaultSelected(player)
-		end
+		if waitForProfile(player) then selectedItems[player] = defaultSelected(player) end
 	end)
 	player.CharacterAdded:Connect(function(character)
 		task.spawn(applyCharacterSetup, player, character)
@@ -162,6 +203,46 @@ local function salvageText(salvage)
 		if amount and amount > 0 then table.insert(pieces, `+{amount} {resource:lower()}`) end
 	end
 	return table.concat(pieces, "  ")
+end
+
+local function damagePlayer(attacker, victim, humanoid, weapon, ranged)
+	local baseDamage
+	if weapon.PercentHealthDamage then
+		baseDamage = humanoid.MaxHealth * weapon.PercentHealthDamage
+	else
+		baseDamage = weapon.Damage or Config.PlayerDamage
+	end
+	local multiplier = PlayerService.GetHatEffect(attacker, "DamageMultiplier", 1)
+	local damage = math.max(0, math.floor(baseDamage * multiplier + 0.5))
+	damage = applyShieldReduction(victim, damage, ranged)
+	local wasAlive = humanoid.Health > 0
+	if damage > 0 then humanoid:TakeDamage(damage) end
+	if weapon.Knockback and weapon.Knockback > 0 then applyKnockback(attacker, humanoid.Parent, weapon.Knockback) end
+	local stolen = stealGold(attacker, victim, weapon.GoldStealPercent)
+	PlayerService.Add(attacker, { XP = ranged and 5 or 4 })
+	local killed = wasAlive and humanoid.Health <= 0
+	if killed then PlayerService.Add(attacker, { Gold = 35, XP = 30 }) end
+	local msg = killed and "KO! +35 gold" or `Hit for {damage}!`
+	if stolen > 0 then msg ..= `  Stole {stolen} gold!` end
+	return damage, killed, msg
+end
+
+local function damageBuildFromWeapon(player, target, weapon)
+	if not CollectionService:HasTag(target, "PlayerBuild") then return false end
+	local model = target:FindFirstAncestorOfClass("Model")
+	if not model then return false end
+	local wasOwn = model:GetAttribute("OwnerUserId") == player.UserId
+	local destroyed, salvage, message = BuildService.DamageBuild(player, model, weapon.BuildDamage or Config.BuildDamage)
+	if destroyed then
+		PlayerService.Add(player, salvage or {})
+		if not wasOwn then PlayerService.Add(player, { XP = 8 }) end
+		local extra = salvageText(salvage)
+		if extra ~= "" then message = `{message}  {extra}` end
+		sendState(player, message, { Kind = "Break", Position = target.Position })
+	else
+		sendState(player, message, { Kind = "Hit", Position = target.Position })
+	end
+	return true
 end
 
 action.OnServerEvent:Connect(function(player, actionName, payload)
@@ -217,6 +298,10 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 
 	if actionName == "Gather" then
 		local _, weapon = getSelectedWeapon(player)
+		if weapon.CanGather == false or weapon.Ranged or weapon.Kind == "Shield" then
+			sendState(player, "Switch to a gathering-capable primary weapon.")
+			return
+		end
 		if not ready(player, "Gather", weapon.Cooldown or Config.GatherCooldown) then return end
 		local target = payload
 		if not validDistance(player, target, Config.GatherDistance) then
@@ -239,49 +324,50 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 				break
 			end
 		end
-		if anySuccess and resourceType == "Stone" and (weapon.StoneBonus or 0) > 0 then
-			PlayerService.Add(player, { Stone = weapon.StoneBonus })
-			lastMessage = `+{weapon.StoneBonus} bonus stone`
+		if anySuccess and resourceType then
+			local bonus = weapon.ResourceBonus or 0
+			if resourceType == "Stone" then bonus += weapon.StoneBonus or 0 end
+			if resourceType == "Wood" then bonus += weapon.WoodBonus or 0 end
+			if bonus > 0 then
+				PlayerService.Add(player, { [resourceType] = bonus })
+				lastMessage = `+{bonus} bonus {string.lower(resourceType)}`
+			end
 		end
 		sendState(player, lastMessage, target and { Kind = "Gather", Position = target.Position } or nil)
-	elseif actionName == "Attack" then
+		return
+	end
+
+	if actionName == "Attack" then
 		local _, weapon = getSelectedWeapon(player)
+		if weapon.Ranged or weapon.Kind == "Shield" or weapon.CanAttack == false then return end
 		if not ready(player, "Attack", weapon.Cooldown or Config.AttackCooldown) then return end
 		local target = payload
 		if not validDistance(player, target, weapon.Range or Config.AttackDistance) then return end
+		if CollectionService:HasTag(target, "PlayerBuild") then
+			damageBuildFromWeapon(player, target, weapon)
+			return
+		end
 		local character = target:FindFirstAncestorOfClass("Model")
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local victim = character and Players:GetPlayerFromCharacter(character)
 		if humanoid and victim and victim ~= player and humanoid.Health > 0 then
-			local multiplier = PlayerService.GetHatEffect(player, "DamageMultiplier", 1)
-			local damage = math.floor((weapon.Damage or Config.PlayerDamage) * multiplier + 0.5)
-			local wasAlive = humanoid.Health > 0
-			humanoid:TakeDamage(damage)
-			PlayerService.Add(player, { XP = 4 })
-			local killed = wasAlive and humanoid.Health <= 0
-			if killed then PlayerService.Add(player, { Gold = 35, XP = 30 }) end
-			sendState(player, killed and "KO! +35 gold" or `Hit for {damage}!`, { Kind = killed and "KO" or "Hit", Position = target.Position })
+			local _, killed, message = damagePlayer(player, victim, humanoid, weapon, false)
+			sendState(player, message, { Kind = killed and "KO" or "Hit", Position = target.Position })
 		end
-	elseif actionName == "AttackBuild" then
+		return
+	end
+
+	if actionName == "AttackBuild" then
 		local _, weapon = getSelectedWeapon(player)
+		if weapon.Ranged or weapon.Kind == "Shield" or weapon.CanAttack == false then return end
 		if not ready(player, "Attack", weapon.Cooldown or Config.AttackCooldown) then return end
 		local target = payload
 		if not validDistance(player, target, weapon.Range or Config.AttackDistance) then return end
-		if not CollectionService:HasTag(target, "PlayerBuild") then return end
-		local model = target:FindFirstAncestorOfClass("Model")
-		if not model then return end
-		local wasOwn = model:GetAttribute("OwnerUserId") == player.UserId
-		local destroyed, salvage, message = BuildService.DamageBuild(player, model, weapon.BuildDamage or Config.BuildDamage)
-		if destroyed then
-			PlayerService.Add(player, salvage or {})
-			if not wasOwn then PlayerService.Add(player, { XP = 8 }) end
-			local extra = salvageText(salvage)
-			if extra ~= "" then message = `{message}  {extra}` end
-			sendState(player, message, { Kind = "Break", Position = target.Position })
-		else
-			sendState(player, message, { Kind = "Hit", Position = target.Position })
-		end
-	elseif actionName == "Eat" then
+		damageBuildFromWeapon(player, target, weapon)
+		return
+	end
+
+	if actionName == "Eat" then
 		if not ready(player, "Eat", 0.35) then return end
 		local profile = PlayerService.Get(player)
 		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -290,7 +376,10 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 			humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + Config.FoodHeal)
 			sendState(player, "Ate food and healed.", { Kind = "Heal" })
 		end
-	elseif actionName == "Build" then
+		return
+	end
+
+	if actionName == "Build" then
 		if not ready(player, "Build", 0.18) then return end
 		if type(payload) ~= "table" then return end
 		local buildType = payload.Type
@@ -300,15 +389,9 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 			return
 		end
 		local allowed, reason = BuildService.CanPlace(player, buildType, payload.Position, payload.Rotation)
-		if not allowed then
-			sendState(player, reason)
-			return
-		end
+		if not allowed then sendState(player, reason) return end
 		local cost = item.Cost or {}
-		if not PlayerService.Spend(player, cost) then
-			sendState(player, "Not enough resources.")
-			return
-		end
+		if not PlayerService.Spend(player, cost) then sendState(player, "Not enough resources.") return end
 		local created, message = BuildService.PlaceBuild(player, buildType, payload.Position, payload.Rotation)
 		if not created then
 			local refund = {}
@@ -316,6 +399,81 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 			PlayerService.Add(player, refund)
 		end
 		sendState(player, message, created and { Kind = "Build", Position = payload.Position } or nil)
+	end
+end)
+
+local function tracer(origin, hitPosition, color)
+	local delta = hitPosition - origin
+	local length = delta.Magnitude
+	if length <= 0.05 then return end
+	local part = Instance.new("Part")
+	part.Name = "ProjectileTracer"
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Material = Enum.Material.Neon
+	part.Color = color or Color3.fromRGB(244, 224, 151)
+	part.Size = Vector3.new(0.12, 0.12, length)
+	part.CFrame = CFrame.lookAt(origin + delta * 0.5, hitPosition)
+	part.Parent = Workspace
+	Debris:AddItem(part, 0.08)
+end
+
+local function raycastWeapon(player, weapon, origin, direction)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = player.Character and { player.Character } or {}
+	params.IgnoreWater = true
+
+	local result = Workspace:Raycast(origin, direction * (weapon.Range or 80), params)
+	local hitPosition = result and result.Position or (origin + direction * (weapon.Range or 80))
+	tracer(origin, hitPosition, weapon.Visual == "Musket" and Color3.fromRGB(255, 226, 160) or Color3.fromRGB(224, 230, 244))
+	if not result then return end
+
+	local hit = result.Instance
+	if CollectionService:HasTag(hit, "PlayerBuild") then
+		damageBuildFromWeapon(player, hit, weapon)
+		return
+	end
+
+	local character = hit:FindFirstAncestorOfClass("Model")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local victim = character and Players:GetPlayerFromCharacter(character)
+	if humanoid and victim and victim ~= player and humanoid.Health > 0 then
+		local _, killed, message = damagePlayer(player, victim, humanoid, weapon, true)
+		sendState(player, message, { Kind = killed and "KO" or "Hit", Position = result.Position })
+	end
+end
+
+secondaryFire.OnServerEvent:Connect(function(player, aimPosition)
+	if typeof(aimPosition) ~= "Vector3" then return end
+	local itemName, weapon = getSelectedWeapon(player)
+	if not weapon.Ranged or not PlayerService.HasUnlock(player, itemName) then return end
+	if not ready(player, `Ranged:{itemName}`, weapon.Cooldown or 0.8) then return end
+
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local head = character and character:FindFirstChild("Head")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not root or not humanoid or humanoid.Health <= 0 then return end
+
+	local origin = (head and head.Position or root.Position) + Vector3.new(0, 0.4, 0)
+	local flatAim = Vector3.new(aimPosition.X, origin.Y, aimPosition.Z)
+	local base = flatAim - origin
+	if base.Magnitude < 0.1 then return end
+	local baseDir = base.Unit
+	local count = math.max(1, weapon.ProjectileCount or 1)
+	local spread = weapon.Spread or 0
+
+	for _ = 1, count do
+		local dir = baseDir
+		if spread > 0 then
+			local side = Vector3.new(-baseDir.Z, 0, baseDir.X)
+			local jitter = (math.random() * 2 - 1) * spread
+			dir = (baseDir + side * jitter).Unit
+		end
+		raycastWeapon(player, weapon, origin, dir)
 	end
 end)
 
@@ -339,7 +497,7 @@ local function nearestEnemy(owner, position, range)
 	return bestHumanoid
 end
 
--- Passive structure effects and automated defenses.
+-- Passive structures, healing and automated defenses.
 task.spawn(function()
 	while true do
 		task.wait(1)
@@ -366,33 +524,26 @@ task.spawn(function()
 					if item.WoodPerTick then grant.Wood = item.WoodPerTick end
 					PlayerService.Add(owner, grant)
 					model:SetAttribute("NextPassiveAt", now + (item.TickSeconds or 8))
-					sendState(owner, nil, { Kind = item.GoldPerTick and "Windmill" or "Resource" })
+					sendState(owner, nil, { Kind = "PassiveBuild" })
 				end
 			end
 
-			if owner and item.HealPerSecond then
+			if owner and item.HealPerSecond and item.EffectRange then
 				local character = owner.Character
 				local root = character and character:FindFirstChild("HumanoidRootPart")
 				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-				if root and humanoid and humanoid.Health > 0 and (root.Position - model.PrimaryPart.Position).Magnitude <= (item.EffectRange or 16) then
+				if root and humanoid and humanoid.Health > 0 and (root.Position - model.PrimaryPart.Position).Magnitude <= item.EffectRange then
 					humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + item.HealPerSecond)
 				end
-			elseif owner and buildType == "Campfire" then
-				local character = owner.Character
-				local root = character and character:FindFirstChild("HumanoidRootPart")
-				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-				if root and humanoid and humanoid.Health > 0 and (root.Position - model.PrimaryPart.Position).Magnitude <= 18 then
-					humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 4)
-				end
 			end
 
-			if owner and item.TurretDamage then
-				local nextAttack = model:GetAttribute("NextAttackAt") or 0
-				if now >= nextAttack then
-					local targetHumanoid = nearestEnemy(owner, model.PrimaryPart.Position, item.TurretRange or 50)
+			if owner and item.TurretDamage and item.TurretRange then
+				local nextShot = model:GetAttribute("NextTurretShot") or 0
+				if now >= nextShot then
+					local targetHumanoid = nearestEnemy(owner, model.PrimaryPart.Position, item.TurretRange)
 					if targetHumanoid then
 						targetHumanoid:TakeDamage(item.TurretDamage)
-						model:SetAttribute("NextAttackAt", now + (item.TurretCooldown or 1.5))
+						model:SetAttribute("NextTurretShot", now + (item.TurretCooldown or 1.3))
 					end
 				end
 			end
