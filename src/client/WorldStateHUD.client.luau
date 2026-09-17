@@ -149,6 +149,12 @@ local function showBanner(phase, day, event)
 end
 
 local function refresh(forceBanner)
+	if player:GetAttribute("InRiftExpedition") == true then
+		card.Visible = false
+		banner.Visible = false
+		return
+	end
+	card.Visible = true
 	local day = ReplicatedStorage:GetAttribute("WildforgeDay") or 1
 	local phase = ReplicatedStorage:GetAttribute("WildforgePhase") or "Dawn"
 	local threat = ReplicatedStorage:GetAttribute("WildforgeThreat") or 1
@@ -187,3 +193,8 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 refresh(false)
+
+
+player:GetAttributeChangedSignal("InRiftExpedition"):Connect(function()
+	refresh(false)
+end)
