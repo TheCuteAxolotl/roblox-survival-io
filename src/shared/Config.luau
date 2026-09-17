@@ -6,7 +6,9 @@ Config.RiverHalfWidth = 32
 Config.RiverNoBuildPadding = 8
 Config.BridgeXPositions = { -360, 0, 360 }
 Config.ResourceRespawnSeconds = 14
-Config.BuildClearance = 0.65
+-- Slightly shrink build-overlap checks so wall faces can touch edge-to-edge.
+-- Actual intersections are still rejected by BuildService.
+Config.BuildClearance = -0.08
 Config.OwnBuildRefundRatio = 1
 Config.EnemyBuildSalvageRatio = 0.5
 
