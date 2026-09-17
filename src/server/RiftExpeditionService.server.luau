@@ -335,19 +335,13 @@ buildArena()
 
 local function findGatePosition()
 	local world = Workspace:FindFirstChild("SurvivalArena")
-	if world then
-		for _ = 1, 30 do
-			local hall = world:FindFirstChild("FrontierTownHall")
-			if hall and hall:IsA("Model") then
-				local ok, pivot = pcall(function() return hall:GetPivot() end)
-				if ok then return pivot.Position + Vector3.new(48, 1.5, 0) end
-			end
-			task.wait(0.2)
-		end
+	local sanctuary = world and world:FindFirstChild("AscensionSanctuary")
+	if sanctuary and sanctuary:IsA("Model") then
+		local ok, pivot = pcall(function() return sanctuary:GetPivot() end)
+		if ok then return Vector3.new(pivot.Position.X, 1.5, pivot.Position.Z) end
 	end
 	return Vector3.new(0, 1.5, -190)
 end
-
 local function buildGate()
 	local old = Workspace:FindFirstChild("RiftExpeditionGate")
 	if old then old:Destroy() end
