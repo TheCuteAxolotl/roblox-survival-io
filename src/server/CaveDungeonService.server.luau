@@ -30,7 +30,7 @@ local function weld(root, child)
 end
 
 local function sign(parent, position, text)
-	local board = part(parent, "Sign", Vector3.new(12, 5, 1), CFrame.new(position), Color3.fromRGB(80, 58, 41), Enum.Material.WoodPlanks)
+	local board = part(parent, "Sign", Vector3.new(18, 7, 1), CFrame.new(position), Color3.fromRGB(80, 58, 41), Enum.Material.WoodPlanks)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.Parent = board
@@ -118,7 +118,7 @@ local function makeCave(name, center, mineKinds)
 	part(cave, "BackWall", Vector3.new(46, 13, 7), CFrame.new(center + Vector3.new(0, 6.5, 25)), stone, Enum.Material.Rock)
 	part(cave, "Roof", Vector3.new(46, 3, 54), CFrame.new(center + Vector3.new(0, 14, 0)), stone, Enum.Material.Rock)
 	for _, x in { -18, 18 } do part(cave, "EntranceRock", Vector3.new(8, 12, 8), CFrame.new(center + Vector3.new(x, 6, -26)), stone, Enum.Material.Rock) end
-	sign(cave, center + Vector3.new(0, 3, -31), `${name:upper()}\nMINE`)
+	sign(cave, center + Vector3.new(0, 3.5, -31), `${name:upper()}\nMINE SAND • STONE • OBSIDIAN`)
 	for i, kind in mineKinds do
 		local x = ((i - 1) % 3 - 1) * 12
 		local z = math.floor((i - 1) / 3) * 13 - 2
@@ -259,7 +259,10 @@ local function makeDungeon(name, center, mobType, mobCount)
 	part(dungeon, "Right", Vector3.new(5, 16, 82), CFrame.new(center + Vector3.new(45, 8, 0)), wallColor, Enum.Material.Rock)
 	part(dungeon, "Roof", Vector3.new(94, 3, 82), CFrame.new(center + Vector3.new(0, 17, 0)), wallColor, Enum.Material.Rock)
 	for _, x in { -35, 35 } do part(dungeon, "EntrancePillar", Vector3.new(12, 16, 8), CFrame.new(center + Vector3.new(x, 8, -39)), wallColor, Enum.Material.Rock) end
-	sign(dungeon, center + Vector3.new(0, 4, -45), mobType == "Dragon" and "DRAGON DUNGEON\nMYTHIC LOOT" or "DEMON VAULT\nDANGER")
+	local entranceText = mobType == "Dragon"
+		and "DRAGON DUNGEON\nSCALES • RARE CLOAK/RELIC\nMYTHIC ARMOR MATERIALS"
+		or "DEMON VAULT\nCORES • OBSIDIAN • RARE RELICS\nENDGAME CRAFTING"
+	sign(dungeon, center + Vector3.new(0, 4, -45), entranceText)
 
 	for i = 1, mobCount do
 		local x = (i - (mobCount + 1) / 2) * 16
