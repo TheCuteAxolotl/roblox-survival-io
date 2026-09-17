@@ -133,8 +133,15 @@ local function render(state)
 		local goal = math.max(1, tonumber(state.Goal) or 1)
 		local progress = math.clamp(tonumber(state.Progress) or 0, 0, goal)
 		progressFill.Size = UDim2.fromScale(progress / goal, 1)
-		progressText.Text = `{progress}/{goal}  •  {state.RewardGold or 0} GOLD + {state.RewardXP or 0} XP`
-		abandon.Visible = true
+		if state.ReadyToTurnIn then
+			title.Text = "READY TO TURN IN • " .. string.upper(state.Title or "CONTRACT")
+			detail.Text = "Return to the Hunter Contract Board and use TURN IN CONTRACT to collect your reward."
+			progressText.Text = `COMPLETE • {state.RewardGold or 0} GOLD + {state.RewardXP or 0} XP`
+			abandon.Visible = false
+		else
+			progressText.Text = `{progress}/{goal}  •  {state.RewardGold or 0} GOLD + {state.RewardXP or 0} XP`
+			abandon.Visible = true
+		end
 	else
 		rank.Text = "--"
 		title.Text = "NO ACTIVE CONTRACT"
