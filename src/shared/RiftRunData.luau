@@ -29,7 +29,7 @@ RiftRunData.Upgrades = {
 	SecondWind = { Label = "SECOND WIND", Description = "+1 automatic solo recovery or emergency revive.", MaxStacks = 2 },
 	Overcharge = { Label = "OVERCHARGE", Description = "Dodging releases a damaging shockwave.", MaxStacks = 1 },
 	Recovery = { Label = "RECOVERY", Description = "Heal 18% after every cleared stage.", MaxStacks = 3 },
-	BossWard = { Label = "BOSS WARD", Description = "Take 12% less damage from Ascension bosses.", MaxStacks = 2 },
+	BossWard = { Label = "WARD", Description = "Take 8% less damage from everything this run.", MaxStacks = 2 },
 	GlassCannon = { Label = "GLASS CANNON", Description = "+32% damage, but take 14% more damage.", MaxStacks = 2 },
 }
 RiftRunData.UpgradeOrder = {
