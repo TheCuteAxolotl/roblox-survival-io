@@ -71,7 +71,8 @@ local function setMarkerFromScreen(screenPosition)
 	local y = math.clamp((screenPosition.Y - pos.Y) / size.Y, 0, 1)
 	local half = Config.WorldSize / 2
 	local worldX = x * Config.WorldSize - half
-	local worldZ = (1 - y) * Config.WorldSize - half
+	-- Same vertical convention as MinimalMap: screen-down corresponds to +Z.
+	local worldZ = y * Config.WorldSize - half
 	waypoint = Vector3.new(worldX, 0, worldZ)
 	marker.Position = UDim2.fromScale(x, y)
 	marker.Visible = true
