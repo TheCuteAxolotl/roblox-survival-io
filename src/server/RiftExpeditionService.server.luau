@@ -654,31 +654,65 @@ local function spawnEnemy(enemyId, position)
 						lastAttack = os.clock()
 						damageParticipant(target, data.Damage * damageScale * (enraged and 1.18 or 1))
 					end
-					if data.Boss and os.clock() - lastSpecial >= (enemyId == "RiftTyrant" and 3.6 or 4.4) then
+					if data.Boss and os.clock() - lastSpecial >= (data.Special == "Bolts" and 3.0 or data.Special == "Slam" and 5.0 or 3.6) then
 						lastSpecial = os.clock()
-						local radius = enemyId == "RiftTyrant" and 22 or 16
-						local pulse = Instance.new("Part")
-						pulse.Name = "RiftBossPulse"
-						pulse.Shape = Enum.PartType.Ball
-						pulse.Size = Vector3.new(2, 0.6, 2)
-						pulse.CFrame = CFrame.new(root.Position - Vector3.new(0, 1.8, 0))
-						pulse.Anchored = true
-						pulse.CanCollide = false
-						pulse.CanQuery = false
-						pulse.Material = Enum.Material.Neon
-						pulse.Color = data.Glow
-						pulse.Transparency = 0.25
-						pulse.Parent = Workspace
-						TweenService:Create(pulse, TweenInfo.new(0.45), { Size = Vector3.new(radius * 2, 0.6, radius * 2), Transparency = 1 }):Play()
-						game:GetService("Debris"):AddItem(pulse, 0.5)
-						task.delay(0.22, function()
+						if data.Special == "Bolts" then
+							local targets = {}
 							for player in run.Participants do
-								local pr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-								if pr and (pr.Position - root.Position).Magnitude <= radius then
-									damageParticipant(player, data.Damage * damageScale * 0.72)
+								if player:GetAttribute("RiftDowned") ~= true then
+									local pr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+									if pr then table.insert(targets, { Player = player, Position = pr.Position }) end
 								end
 							end
-						end)
+							for i = 1, math.min(3, #targets) do
+								local targetInfo = targets[i]
+								local orb = Instance.new("Part")
+								orb.Name = "VoidBolt"
+								orb.Shape = Enum.PartType.Ball
+								orb.Size = Vector3.new(2.4, 2.4, 2.4)
+								orb.CFrame = CFrame.new(root.Position + Vector3.new(0, 4, 0))
+								orb.Anchored = true
+								orb.CanCollide = false
+								orb.CanQuery = false
+								orb.Material = Enum.Material.Neon
+								orb.Color = data.Glow
+								orb.Parent = Workspace
+								TweenService:Create(orb, TweenInfo.new(0.55, Enum.EasingStyle.Linear), { CFrame = CFrame.new(targetInfo.Position), Transparency = 0.25 }):Play()
+								game:GetService("Debris"):AddItem(orb, 0.65)
+								task.delay(0.53, function()
+									local pr = targetInfo.Player.Character and targetInfo.Player.Character:FindFirstChild("HumanoidRootPart")
+									if pr and (pr.Position - targetInfo.Position).Magnitude <= 8 then
+										damageParticipant(targetInfo.Player, data.Damage * damageScale * 0.78)
+									end
+								end)
+							end
+						else
+							local radius = data.Special == "Slam" and 28 or 22
+							local duration = data.Special == "Slam" and 0.75 or 0.45
+							local pulse = Instance.new("Part")
+							pulse.Name = data.Special == "Slam" and "StormSlam" or "RiftBossPulse"
+							pulse.Shape = Enum.PartType.Ball
+							pulse.Size = Vector3.new(2, 0.6, 2)
+							pulse.CFrame = CFrame.new(root.Position - Vector3.new(0, 1.8, 0))
+							pulse.Anchored = true
+							pulse.CanCollide = false
+							pulse.CanQuery = false
+							pulse.Material = Enum.Material.Neon
+							pulse.Color = data.Glow
+							pulse.Transparency = 0.25
+							pulse.Parent = Workspace
+							TweenService:Create(pulse, TweenInfo.new(duration), { Size = Vector3.new(radius * 2, 0.6, radius * 2), Transparency = 0.72 }):Play()
+							game:GetService("Debris"):AddItem(pulse, duration + 0.1)
+							task.delay(duration - 0.05, function()
+								for player in run.Participants do
+									local pr = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+									if pr and (pr.Position - root.Position).Magnitude <= radius then
+										local mult = data.Special == "Slam" and 0.95 or 0.72
+										damageParticipant(player, data.Damage * damageScale * mult)
+									end
+								end
+							end)
+						end
 					end
 				end
 			end
@@ -738,7 +772,11 @@ local function spawnStage(stageIndex)
 			pushAll("STORM ENDED - Finish the remaining corrupted enemies.")
 		end)
 	elseif stage.Kind == "Boss" then
-		spawnEnemy(stage.Enemy, center + Vector3.new(0, 2, 28))
+		local bossId = stage.Enemy
+		if stage.BossPool and #stage.BossPool > 0 then
+			bossId = stage.BossPool[math.random(1, #stage.BossPool)]
+		end
+		spawnEnemy(bossId, center + Vector3.new(0, 2, 28))
 		for _ = 1, math.max(0, math.floor((stage.Adds or 0) * countScale + 0.5)) do
 			spawnEnemy(stageIndex == 3 and "Riftling" or "RiftHunter", randomArenaPoint(70))
 		end
