@@ -18,7 +18,7 @@ local hoveredItem = nil
 
 local tooltip = Instance.new("Frame")
 tooltip.Name = "ItemHoverTooltip"
-tooltip.Size = UDim2.fromOffset(330, 174)
+tooltip.Size = UDim2.fromOffset(330, 188)
 tooltip.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
 tooltip.BackgroundTransparency = 0.04
 tooltip.Visible = false
@@ -81,7 +81,13 @@ end
 
 local function effectText(item)
 	local effects = {}
-	if item.GoldPerTick then table.insert(effects, `Gold: +{item.GoldPerTick} every {item.TickSeconds or 8}s`) end
+	if item.GoldPerTick then
+		table.insert(effects, `Gold: +{item.GoldPerTick} every {item.TickSeconds or 8}s`)
+		if item.UpgradeGroup == "Mill" then
+			local xp = item.XPPerTick or item.GoldPerTick
+			table.insert(effects, `XP: +{xp} every {item.TickSeconds or 8}s`)
+		end
+	end
 	if item.WoodPerTick then table.insert(effects, `Wood: +{item.WoodPerTick} every {item.TickSeconds or 8}s`) end
 	if item.HealPerSecond then table.insert(effects, `Healing: +{item.HealPerSecond} HP/s within {item.EffectRange or 16} studs`) end
 	if item.TurretDamage then table.insert(effects, `Turret: {item.TurretDamage} damage • {item.TurretRange or 0} stud range`) end
