@@ -124,6 +124,14 @@ function ClanService.IsOwner(player)
 	return record ~= nil and record.OwnerUserId == player.UserId
 end
 
+function ClanService.GetMemberCount(playerOrUserId)
+	local record = ClanService.GetRecord(playerOrUserId)
+	if not record or type(record.Members) ~= "table" then return 0 end
+	local count = 0
+	for _, active in record.Members do if active == true then count += 1 end end
+	return count
+end
+
 function ClanService.SameClan(a, b)
 	local aId = typeof(a) == "Instance" and a.UserId or tonumber(a)
 	local bId = typeof(b) == "Instance" and b.UserId or tonumber(b)
@@ -168,7 +176,7 @@ function ClanService.Create(player, rawName)
 	playerClan[player.UserId] = key
 	savePlayerClan(player.UserId, key)
 	clanCache[key] = record
-	return true, `Created clan [${record.Tag}].`
+	return true, `Created clan [{record.Tag}].`
 end
 
 function ClanService.Join(player, rawName)
@@ -195,47 +203,122 @@ function ClanService.Join(player, rawName)
 	clanCache[key] = record
 	playerClan[player.UserId] = key
 	savePlayerClan(player.UserId, key)
-	return true, `Joined [${record.Tag}].`
+	return true, `Joined [{record.Tag}].`
+end
+
+function ClanService.TransferOwnership(player, rawUsername)
+	local key = playerClan[player.UserId]
+	local record = key and loadClan(key)
+	if not record then return false, "You are not in a clan." end
+	if record.OwnerUserId ~= player.UserId then return false, "Only the clan owner can transfer ownership." end
+	local username = trim(rawUsername)
+	if username == "" then return false, "Enter the Roblox username of a clan member." end
+
+	local okId, targetUserId = pcall(function() return Players:GetUserIdFromNameAsync(username) end)
+	if not okId or not targetUserId then return false, "Roblox username not found." end
+	if targetUserId == player.UserId then return false, "You already own this clan." end
+	if not record.Members or record.Members[memberKey(targetUserId)] ~= true then return false, "That player must already be a member of your clan." end
+
+	if persistent and clanStore then
+		local transferred = false
+		local ok, updated = pcall(function()
+			return clanStore:UpdateAsync(`c_{key}`, function(current)
+				if type(current) ~= "table" or current.Retired == true then return current end
+				if current.OwnerUserId ~= player.UserId then return current end
+				if not current.Members or current.Members[memberKey(targetUserId)] ~= true then return current end
+				current.OwnerUserId = targetUserId
+				current.LastOwnershipTransferAt = os.time()
+				transferred = true
+				return current
+			end)
+		end)
+		if not ok or not transferred or type(updated) ~= "table" then return false, "Ownership transfer failed. Try again." end
+		record = updated
+	else
+		record.OwnerUserId = targetUserId
+		record.LastOwnershipTransferAt = os.time()
+		saveClan(key, record)
+	end
+
+	clanCache[key] = record
+	savePlayerClan(targetUserId, key)
+	return true, `Ownership transferred to {username}. You can now leave the clan.`
 end
 
 function ClanService.Leave(player)
 	local key = playerClan[player.UserId]
 	local record = key and loadClan(key)
 	if not record then return false, "You are not in a clan." end
-	local uid = memberKey(player.UserId)
-	record.Members = record.Members or {}
-	record.Members[uid] = nil
-
 	if record.OwnerUserId == player.UserId then
-		local replacement = nil
-		for memberId, active in record.Members do if active then replacement = tonumber(memberId) break end end
-		if replacement then record.OwnerUserId = replacement else record.Retired = true record.RetiredAt = os.time() end
+		return false, "Clan owners cannot leave. Transfer ownership to a member first, or disband the clan."
 	end
+	local uid = memberKey(player.UserId)
 
 	if persistent and clanStore then
-		local snapshot = copy(record)
+		local removed = false
 		local ok, updated = pcall(function()
 			return clanStore:UpdateAsync(`c_{key}`, function(current)
-				if type(current) ~= "table" then return snapshot end
+				if type(current) ~= "table" or current.Retired == true then return current end
+				if current.OwnerUserId == player.UserId then return current end
 				current.Members = current.Members or {}
 				current.Members[uid] = nil
-				if current.OwnerUserId == player.UserId then
-					local replacement = nil
-					for memberId, active in current.Members do if active then replacement = tonumber(memberId) break end end
-					if replacement then current.OwnerUserId = replacement else current.Retired = true current.RetiredAt = os.time() end
-				end
+				removed = true
 				return current
 			end)
 		end)
-		if ok and type(updated) == "table" then record = updated end
+		if not ok or not removed or type(updated) ~= "table" then return false, "Could not leave the clan. Try again." end
+		record = updated
 	else
+		record.Members = record.Members or {}
+		record.Members[uid] = nil
 		saveClan(key, record)
 	end
 
 	clanCache[key] = record
 	playerClan[player.UserId] = nil
 	savePlayerClan(player.UserId, nil)
-	return true, "Left clan. Its name stays permanently reserved."
+	return true, "Left clan."
+end
+
+function ClanService.Disband(player)
+	local key = playerClan[player.UserId]
+	local record = key and loadClan(key)
+	if not record then return false, "You are not in a clan." end
+	if record.OwnerUserId ~= player.UserId then return false, "Only the clan owner can disband the clan." end
+
+	if persistent and clanStore then
+		local disbanded = false
+		local ok, updated = pcall(function()
+			return clanStore:UpdateAsync(`c_{key}`, function(current)
+				if type(current) ~= "table" then return current end
+				if current.Retired == true or current.OwnerUserId ~= player.UserId then return current end
+				current.Retired = true
+				current.DisbandedAt = os.time()
+				current.DisbandedByUserId = player.UserId
+				disbanded = true
+				return current
+			end)
+		end)
+		if not ok or not disbanded or type(updated) ~= "table" then return false, "Could not disband the clan. Try again." end
+		record = updated
+	else
+		record.Retired = true
+		record.DisbandedAt = os.time()
+		record.DisbandedByUserId = player.UserId
+		saveClan(key, record)
+	end
+
+	clanCache[key] = record
+	for memberId, active in record.Members or {} do
+		if active == true then
+			local numericId = tonumber(memberId)
+			if numericId then
+				playerClan[numericId] = nil
+				savePlayerClan(numericId, nil)
+			end
+		end
+	end
+	return true, `Clan [{record.Tag}] disbanded. Its name is permanently reserved.`
 end
 
 return ClanService
