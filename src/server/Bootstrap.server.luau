@@ -95,7 +95,9 @@ local function selectedShield(player)
 end
 
 local function outgoingMultiplier(player)
-	return PlayerService.GetHatEffect(player, "DamageMultiplier", 1) * math.max(0, player:GetAttribute("CloakDamageMultiplier") or 1)
+	return PlayerService.GetHatEffect(player, "DamageMultiplier", 1)
+		* math.max(0, player:GetAttribute("CloakDamageMultiplier") or 1)
+		* math.max(0.1, player:GetAttribute("RiftDamageMultiplier") or 1)
 end
 
 local function applyDefense(victim, damage, ranged)
@@ -147,7 +149,11 @@ end
 
 local function damageMob(player, model, humanoid, weapon)
 	local base = weapon.PercentHealthDamage and humanoid.MaxHealth * weapon.PercentHealthDamage or (weapon.Damage or 0)
-	local damage = math.max(0, math.floor(base * outgoingMultiplier(player) + 0.5))
+	local multiplier = outgoingMultiplier(player)
+	if model:GetAttribute("RiftBoss") == true then
+		multiplier *= math.max(0.1, player:GetAttribute("RiftBossDamageMultiplier") or 1)
+	end
+	local damage = math.max(0, math.floor(base * multiplier + 0.5))
 	if damage > 0 then MobService.Damage(model, player, damage) end
 	return damage
 end
@@ -205,6 +211,7 @@ end
 
 action.OnServerEvent:Connect(function(player, actionName, payload)
 	if type(actionName) ~= "string" then return end
+	if player:GetAttribute("RiftDowned") == true and actionName ~= "SelectItem" then return end
 	if actionName == "SelectItem" then
 		if type(payload) == "string" and ItemData.Items[payload] and PlayerService.HasUnlock(player, payload) then selectedItems[player] = payload sendState(player, `${ItemData.Items[payload].Label} selected.`) end
 		return
