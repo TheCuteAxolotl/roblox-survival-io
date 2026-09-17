@@ -157,7 +157,7 @@ local function addHeader(panel, text)
 	return title
 end
 
-local bagTitle = addHeader(bagPanel, "SURVIVAL BAG — 6 SLOTS")
+local bagTitle = addHeader(bagPanel, "SURVIVAL BAG — 34 SLOTS")
 local craftTitle = addHeader(craftPanel, "CRAFTING")
 local kitsTitle = addHeader(kitsPanel, "SURVIVAL KITS")
 local chestTitle = addHeader(chestPanel, "CHEST")
@@ -203,7 +203,7 @@ end
 
 local function rebuildBag()
 	for _, child in bagList:GetChildren() do if child:IsA("Frame") then child:Destroy() end end
-	for slotIndex = 1, 6 do
+	for slotIndex = 1, 34 do
 		local slot = current.Inventory and current.Inventory[slotIndex]
 		local row = Instance.new("Frame")
 		row.Size = UDim2.new(1, 0, 0, 58)
@@ -450,7 +450,7 @@ local function rebuildChest()
 	invTitle.TextSize = 11
 	invTitle.ZIndex = 82
 	invTitle.Parent = chestContentFrame
-	for i = 1, 6 do
+	for i = 1, 34 do
 		local slot = current.Inventory and current.Inventory[i]
 		local button = Instance.new("TextButton")
 		button.Position = UDim2.fromOffset(((i - 1) % 3) * 158, 206 + math.floor((i - 1) / 3) * 74)
