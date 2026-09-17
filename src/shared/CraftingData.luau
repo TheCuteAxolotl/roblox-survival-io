@@ -48,6 +48,7 @@ CraftingData.Recipes = {
 
 	LeatherArmor = { Label = "Leather Armor", Category = "Armor", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Items = { Hide = 8, Rope = 3, Cloth = 2 } }, Result = { Item = "LeatherArmor", Amount = 1 } },
 	FurArmor = { Label = "Fur Armor", Category = "Armor", Rarity = "Rare", Station = "Workbench", Ingredients = { Items = { Fur = 8, Cloth = 4, ReinforcedRope = 2 } }, Result = { Item = "FurArmor", Amount = 1 } },
+	RangerArmor = { Label = "Blackwood Ranger Armor", Category = "Armor", Rarity = "Epic", Station = "Workbench", Ingredients = { Items = { Hide = 6, Fur = 4, MoonSilk = 4, DireFang = 2, Rope = 2 } }, Result = { Item = "RangerArmor", Amount = 1 } },
 	StoneplateArmor = { Label = "Stoneplate Armor", Category = "Armor", Rarity = "Epic", Station = "Workbench", Ingredients = { Resources = { Stone = 120 }, Items = { Hide = 4, ReinforcedRope = 2 } }, Result = { Item = "StoneplateArmor", Amount = 1 } },
 	DragonforgedArmor = { Label = "Dragonforged Armor", Category = "Armor", Rarity = "Mythic", Station = "Workbench", Ingredients = { Resources = { Stone = 150 }, Items = { DragonScale = 6, DemonCore = 2, ObsidianShard = 4, ReinforcedRope = 2 } }, Result = { Item = "DragonforgedArmor", Amount = 1 } },
 
@@ -65,7 +66,7 @@ CraftingData.Order = {
 	"WorkbenchKit", "FarmPlotKit", "CampfireKit", "Torch", "ChestKit", "BedKit",
 	"Bandage", "FieldDressing", "Antidote", "EmptyFlask", "HealthPotion", "SpeedPotion", "FortifyPotion", "SurvivalElixir",
 	"SpikeTrapKit", "WebTrapKit", "Fertilizer", "LeatherPouch", "BoneKnife", "FurWrap",
-	"LeatherArmor", "FurArmor", "StoneplateArmor", "DragonforgedArmor",
+	"LeatherArmor", "FurArmor", "RangerArmor", "StoneplateArmor", "DragonforgedArmor",
 	"CookedMeat", "CookedBeef", "Charcoal", "BoneBroth", "TrailRation", "HerbalTea", "WheatSeeds",
 }
 
