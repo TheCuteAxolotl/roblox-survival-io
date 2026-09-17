@@ -93,6 +93,26 @@ function PlayerService.Spend(player, cost)
 	return PlayerService.Add(player, changes)
 end
 
+function PlayerService.TakeDeathDrop(player, ratio)
+	local profile = profiles[player]
+	if not profile then return {} end
+	ratio = math.clamp(tonumber(ratio) or 0.35, 0, 1)
+
+	local drops = {}
+	for _, resource in { "Wood", "Stone", "Food", "Gold" } do
+		local current = math.floor(profile[resource] or 0)
+		local amount = math.floor(current * ratio)
+		if amount > 0 then
+			profile[resource] = current - amount
+			drops[resource] = amount
+		else
+			drops[resource] = 0
+		end
+	end
+	syncLeaderstats(player)
+	return drops
+end
+
 local function makeLeaderstats(player, profile)
 	local old = player:FindFirstChild("leaderstats")
 	if old then old:Destroy() end
