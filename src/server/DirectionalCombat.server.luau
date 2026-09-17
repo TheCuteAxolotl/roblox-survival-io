@@ -6,9 +6,11 @@ local Workspace = game:GetService("Workspace")
 local Config = require(ReplicatedStorage.Shared.Config)
 local ItemData = require(ReplicatedStorage.Shared.ItemData)
 local BuildService = require(script.Parent.BuildService)
+local ClanService = require(script.Parent.ClanService)
 local MobService = require(script.Parent.MobService)
 local PlayerService = require(script.Parent.PlayerService)
 local WorldService = require(script.Parent.WorldService)
+ClanService.Init()
 
 local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
 local action = remotes:WaitForChild("Action")
@@ -24,8 +26,7 @@ local MAX_TARGETS = 10
 
 local function sendState(player, message, kind)
 	stateChanged:FireClient(player, {
-		Profile = PlayerService.GetPublic(player),
-		Message = message,
+		Profile = PlayerService.GetPublic(player), Message = message,
 		FX = kind and { Kind = kind } or nil,
 		SelectedItem = selected[player] or PlayerService.GetPrimaryWeapon(player),
 		BuildCounts = BuildService.GetOwnedCounts(player),
@@ -43,10 +44,7 @@ local function currentWeapon(player)
 	local name = selected[player]
 	if not name or not PlayerService.HasUnlock(player, name) then name = PlayerService.GetPrimaryWeapon(player) end
 	local item = name and ItemData.Items[name]
-	if not item or item.Category ~= "Weapon" then
-		name = PlayerService.GetPrimaryWeapon(player)
-		item = ItemData.Items[name]
-	end
+	if not item or item.Category ~= "Weapon" then name = PlayerService.GetPrimaryWeapon(player) item = ItemData.Items[name] end
 	selected[player] = name
 	return name, item
 end
@@ -58,10 +56,17 @@ local function selectedShield(player)
 	return nil
 end
 
+local function outgoingMultiplier(player)
+	return PlayerService.GetHatEffect(player, "DamageMultiplier", 1) * math.max(0, player:GetAttribute("CloakDamageMultiplier") or 1)
+end
+
+local function incomingMultiplier(player)
+	return 1 - math.clamp(player:GetAttribute("ArmorReduction") or 0, 0, 0.65)
+end
+
 local function flatDirection(root)
 	local forward = Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z)
-	if forward.Magnitude < 0.01 then return Vector3.new(0, 0, -1) end
-	return forward.Unit
+	return forward.Magnitude < 0.01 and Vector3.new(0, 0, -1) or forward.Unit
 end
 
 local function candidatePosition(model, fallback)
@@ -87,13 +92,15 @@ local function applyGatherHatBonus(player, changes)
 end
 
 local function damagePlayer(attacker, victim, humanoid, weapon)
+	if ClanService.SameClan(attacker, victim) then return 0, false end
 	local damage = weapon.PercentHealthDamage and humanoid.MaxHealth * weapon.PercentHealthDamage or (weapon.Damage or 0)
-	damage *= PlayerService.GetHatEffect(attacker, "DamageMultiplier", 1)
+	damage *= outgoingMultiplier(attacker)
 	local shield = selectedShield(victim)
 	if shield then damage *= 1 - math.clamp(shield.BlockPercent or 0, 0, 0.9) end
+	damage *= incomingMultiplier(victim)
 	damage = math.max(0, math.floor(damage + 0.5))
 	if damage > 0 then humanoid:TakeDamage(damage) end
-	if weapon.Knockback and weapon.Knockback > 0 then
+	if weapon.Knockback and weapon.Knockback > 0 and damage > 0 then
 		local aRoot = attacker.Character and attacker.Character:FindFirstChild("HumanoidRootPart")
 		local vRoot = humanoid.Parent and humanoid.Parent:FindFirstChild("HumanoidRootPart")
 		if aRoot and vRoot then
@@ -101,8 +108,8 @@ local function damagePlayer(attacker, victim, humanoid, weapon)
 			if delta.Magnitude > 0.05 then vRoot.AssemblyLinearVelocity += delta.Unit * weapon.Knockback end
 		end
 	end
-	PlayerService.Add(attacker, { XP = 4 })
-	return damage
+	if damage > 0 then PlayerService.Add(attacker, { XP = 4 }) end
+	return damage, damage > 0
 end
 
 local function damageBuild(player, model, weapon)
@@ -131,13 +138,10 @@ local function gatherModel(player, model, part, weapon)
 end
 
 action.OnServerEvent:Connect(function(player, actionName, payload)
-	if actionName == "SelectItem" and type(payload) == "string" and PlayerService.HasUnlock(player, payload) then
-		selected[player] = payload
+	if actionName == "SelectItem" and type(payload) == "string" and PlayerService.HasUnlock(player, payload) then selected[player] = payload
 	elseif actionName == "ChooseUpgrade" and type(payload) == "string" then
 		task.defer(function()
-			if PlayerService.HasUnlock(player, payload) and ItemData.Items[payload] and ItemData.Items[payload].Category == "Weapon" then
-				selected[player] = payload
-			end
+			if PlayerService.HasUnlock(player, payload) and ItemData.Items[payload] and ItemData.Items[payload].Category == "Weapon" then selected[player] = payload end
 		end)
 	end
 end)
@@ -147,7 +151,6 @@ directional.OnServerEvent:Connect(function(player)
 	if not weapon or weapon.Ranged or weapon.Kind == "Shield" then return end
 	if weapon.CanAttack == false and weapon.CanGather == false then return end
 	if not ready(player, weapon.Cooldown or Config.AttackCooldown) then return end
-
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local hum = character and character:FindFirstChildOfClass("Humanoid")
@@ -160,9 +163,7 @@ directional.OnServerEvent:Connect(function(player)
 	params.FilterDescendantsInstances = { character }
 	local parts = Workspace:GetPartBoundsInRadius(root.Position, range + 2, params)
 	local seen = {}
-	local hitCount = 0
-	local gathered = 0
-	local damaged = 0
+	local hitCount, gathered, damaged = 0, 0, 0
 
 	for _, part in parts do
 		if hitCount >= MAX_TARGETS then break end
@@ -175,39 +176,29 @@ directional.OnServerEvent:Connect(function(player)
 
 		if CollectionService:HasTag(part, "SurvivalResource") and weapon.CanGather ~= false then
 			seen[key] = true
-			if model and model:GetAttribute("Alive") ~= false and gatherModel(player, model, part, weapon) then
-				gathered += 1
-				hitCount += 1
-			end
+			if model and model:GetAttribute("Alive") ~= false and gatherModel(player, model, part, weapon) then gathered += 1 hitCount += 1 end
 		elseif CollectionService:HasTag(part, "PlayerBuild") and weapon.CanAttack ~= false then
 			seen[key] = true
-			if model and damageBuild(player, model, weapon) then
-				damaged += 1
-				hitCount += 1
-			end
+			if model and damageBuild(player, model, weapon) then damaged += 1 hitCount += 1 end
 		else
 			local targetHum = model and model:FindFirstChildOfClass("Humanoid")
 			if targetHum and targetHum.Health > 0 and weapon.CanAttack ~= false then
 				seen[key] = true
 				local victim = Players:GetPlayerFromCharacter(model)
 				if victim and victim ~= player then
-					damagePlayer(player, victim, targetHum, weapon)
-					damaged += 1
-					hitCount += 1
+					local _, didDamage = damagePlayer(player, victim, targetHum, weapon)
+					if didDamage then damaged += 1 hitCount += 1 end
 				else
 					local isMob, mobModel = MobService.IsMob(model)
 					if isMob then
 						local amount = weapon.PercentHealthDamage and targetHum.MaxHealth * weapon.PercentHealthDamage or (weapon.Damage or 0)
-						amount *= PlayerService.GetHatEffect(player, "DamageMultiplier", 1)
-						if amount > 0 then MobService.Damage(mobModel, player, math.floor(amount + 0.5)) end
-						damaged += 1
-						hitCount += 1
+						amount *= outgoingMultiplier(player)
+						if amount > 0 then MobService.Damage(mobModel, player, math.floor(amount + 0.5)) damaged += 1 hitCount += 1 end
 					end
 				end
 			end
 		end
 	end
-
 	if hitCount > 0 then
 		local pieces = {}
 		if damaged > 0 then table.insert(pieces, `hit {damaged}`) end
@@ -216,7 +207,4 @@ directional.OnServerEvent:Connect(function(player)
 	end
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-	selected[player] = nil
-	cooldowns[player] = nil
-end)
+Players.PlayerRemoving:Connect(function(player) selected[player] = nil cooldowns[player] = nil end)
