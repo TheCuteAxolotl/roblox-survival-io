@@ -9,12 +9,17 @@ local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
 local stateChanged = remotes:WaitForChild("StateChanged")
 local getState = remotes:WaitForChild("GetState")
 local survivalState = remotes:WaitForChild("SurvivalState")
+local missionState = remotes:WaitForChild("MissionState", 20)
+local getMissionState = remotes:WaitForChild("GetMissionState", 20)
 
 local profile = { Wood = 0, Stone = 0, XP = 0, Age = 1 }
 local needs = { Hunger = 100, Thirst = 100 }
 local buildCounts = {}
+local visitedTownHall = false
 local visitedVillage = false
 local visitedBlackwood = false
+local activeContract = false
+local completedContracts = 0
 local sawFirstNight = false
 local survivedFirstNight = false
 local lastPhase = ReplicatedStorage:GetAttribute("WildforgePhase") or "Dawn"
@@ -133,27 +138,41 @@ local function refresh()
 		return
 	end
 
+	if not visitedTownHall then
+		setObjective("Find the HUNTER TOWN HALL • the central mission board is where your ranked contracts begin.", false)
+		return
+	end
+
+	if completedContracts < 1 then
+		if activeContract then
+			setObjective("Complete your first paper contract • the contract tracker on the right shows your progress and payout.", false)
+		else
+			setObjective("Take a paper contract from the Town Hall board • start with an E-rank job and earn your first mission payout.", false)
+		end
+		return
+	end
+
 	if not visitedVillage then
-		setObjective("Find a village • trade Gold for supplies and learn where the world gets safer.", false)
+		setObjective("Find a village • trade mission Gold for supplies and discover more of the world.", false)
 		return
 	end
 
 	if forgeLevel < 4 then
-		setObjective("Grow stronger • hunt, gather and explore until Forge Level 4 unlocks your secondary path.", false)
+		setObjective("Raise your Hunter skills and Forge Level • contracts, hunting and survival all make you stronger.", false)
 		return
 	end
 
 	if not visitedBlackwood then
-		setObjective("Enter Blackwood Forest • stronger wildlife drops materials you cannot get in the safe grasslands.", false)
+		setObjective("Take a B-rank Blackwood contract • stronger wildlife drops materials you cannot get in the safe grasslands.", false)
 		return
 	end
 
 	if forgeLevel < 6 then
-		setObjective("Prepare for endgame • craft armor, improve your base, and reach Forge Level 6.", false)
+		setObjective("Prepare for A-rank work • craft armor, expand your base, complete contracts and reach Forge Level 6.", false)
 		return
 	end
 
-	setObjective("Endgame: clear a cave, challenge a dungeon boss, and hunt Mythic loot for Dragonforged gear.", false)
+	setObjective("Endgame Journey: accept an A/S-rank boss contract, clear a dungeon, and hunt Mythic loot for Dragonforged gear.", false)
 end
 
 local function applyProfile(nextProfile, nextBuildCounts)
@@ -174,12 +193,25 @@ survivalState.OnClientEvent:Connect(function(payload)
 	refresh()
 end)
 
+if missionState then
+	missionState.OnClientEvent:Connect(function(payload)
+		if type(payload) ~= "table" then return end
+		activeContract = payload.Active == true
+		completedContracts = math.max(completedContracts, tonumber(payload.CompletedThisSession) or 0)
+		refresh()
+	end)
+end
+
 task.spawn(function()
 	local ok, initial = pcall(function() return getState:InvokeServer() end)
-	if ok and type(initial) == "table" then
-		applyProfile(initial.Profile, initial.BuildCounts)
-	else
-		refresh()
+	if ok and type(initial) == "table" then applyProfile(initial.Profile, initial.BuildCounts) else refresh() end
+	if getMissionState then
+		local missionOk, mission = pcall(function() return getMissionState:InvokeServer() end)
+		if missionOk and type(mission) == "table" then
+			activeContract = mission.Active == true
+			completedContracts = tonumber(mission.CompletedThisSession) or 0
+			refresh()
+		end
 	end
 end)
 
@@ -201,14 +233,19 @@ RunService.Heartbeat:Connect(function(dt)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local world = workspace:FindFirstChild("SurvivalArena")
 	if root and world then
+		if not visitedTownHall then
+			local hall = world:FindFirstChild("FrontierTownHall")
+			if hall and hall:IsA("Model") then
+				local ok, pivot = pcall(function() return hall:GetPivot() end)
+				if ok and (root.Position - pivot.Position).Magnitude <= 78 then visitedTownHall = true end
+			end
+		end
+
 		if not visitedVillage then
 			for _, child in world:GetChildren() do
-				if child:IsA("Model") and child:GetAttribute("VillageBiome") then
+				if child:IsA("Model") and child:GetAttribute("VillageBiome") and child:GetAttribute("TownHall") ~= true then
 					local ok, pivot = pcall(function() return child:GetPivot() end)
-					if ok and (root.Position - pivot.Position).Magnitude <= 76 then
-						visitedVillage = true
-						break
-					end
+					if ok and (root.Position - pivot.Position).Magnitude <= 76 then visitedVillage = true break end
 				end
 			end
 		end
