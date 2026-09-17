@@ -107,6 +107,7 @@ local function worldToMap(position)
 end
 
 local function landmarkType(model)
+	if model:GetAttribute("TownHall") == true then return "H", Color3.fromRGB(214, 168, 255), math.huge end
 	if model:GetAttribute("Castle") == true then return "K", Color3.fromRGB(214, 198, 165), 120 end
 	if model:GetAttribute("Dungeon") == true then return "D", Color3.fromRGB(205, 92, 112), 100 end
 	if model:GetAttribute("Cave") == true then return "C", Color3.fromRGB(126, 126, 136), 90 end
@@ -145,6 +146,11 @@ end
 
 local discoveryTimer = 0
 RunService.RenderStepped:Connect(function(dt)
+	if player:GetAttribute("InRiftExpedition") == true then
+		map.Visible = false
+		return
+	end
+	map.Visible = true
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
