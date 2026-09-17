@@ -1,12 +1,13 @@
 local SurvivalItemData = {}
 
-SurvivalItemData.RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary" }
+SurvivalItemData.RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic" }
 SurvivalItemData.RarityColors = {
 	Common = Color3.fromRGB(205, 205, 205),
 	Uncommon = Color3.fromRGB(104, 205, 120),
 	Rare = Color3.fromRGB(94, 151, 245),
 	Epic = Color3.fromRGB(180, 103, 238),
 	Legendary = Color3.fromRGB(245, 185, 67),
+	Mythic = Color3.fromRGB(245, 92, 135),
 }
 
 SurvivalItemData.Items = {
@@ -14,19 +15,22 @@ SurvivalItemData.Items = {
 	Venom = { Label = "Spider Venom", Rarity = "Uncommon", Stack = 12, Description = "Dangerous alchemy ingredient dropped by spiders and scorpions." },
 	RawMeat = { Label = "Raw Meat", Rarity = "Common", Stack = 12, Description = "Cook it before eating for the best result." },
 	RawBeef = { Label = "Raw Beef", Rarity = "Common", Stack = 12, Description = "Fresh beef from wild cattle. Cook it at a campfire." },
-	Hide = { Label = "Animal Hide", Rarity = "Common", Stack = 16, Description = "Useful for flasks, pouches, and survival gear." },
+	Hide = { Label = "Animal Hide", Rarity = "Common", Stack = 16, Description = "Useful for bottles, armor, pouches, and survival gear." },
 	Bone = { Label = "Bone", Rarity = "Common", Stack = 20, Description = "Hard crafting material dropped by larger animals." },
 	Fur = { Label = "Thick Fur", Rarity = "Uncommon", Stack = 12, Description = "Warm fur found mostly on snow-biome animals." },
 	Herb = { Label = "Wild Herb", Rarity = "Common", Stack = 20, Description = "A basic medicine and potion ingredient." },
 	Wheat = { Label = "Wheat", Rarity = "Common", Stack = 20, Description = "Harvested crop used for cloth, food, and more seeds." },
 	WheatSeeds = { Label = "Wheat Seeds", Rarity = "Common", Stack = 20, Description = "Use near an empty farm plot to grow wheat.", Use = "Seed", Crop = "Wheat" },
 	CactusFiber = { Label = "Cactus Fiber", Rarity = "Common", Stack = 20, Description = "Dry desert fiber useful for cloth and rope." },
+	Sand = { Label = "Fine Sand", Rarity = "Common", Stack = 30, Description = "Mine sand deposits in the desert and caves, then smelt it into glass." },
+	Glass = { Label = "Glass", Rarity = "Uncommon", Stack = 20, Description = "Smelted crafting material used for bottles, lanterns, and advanced gear." },
 	Charcoal = { Label = "Charcoal", Rarity = "Common", Stack = 20, Description = "Fuel and alchemy material made at a campfire." },
 	Rope = { Label = "Rope", Rarity = "Common", Stack = 16, Description = "Basic construction and crafting component." },
 	Cloth = { Label = "Cloth", Rarity = "Common", Stack = 16, Description = "Soft material used for medicine and equipment." },
 	ReinforcedRope = { Label = "Reinforced Rope", Rarity = "Uncommon", Stack = 12, Description = "Strong rope woven with web." },
 	LeatherPouch = { Label = "Leather Pouch", Rarity = "Uncommon", Stack = 6, Description = "Valuable crafted trade item." },
 	BoneKnife = { Label = "Bone Knife", Rarity = "Uncommon", Stack = 4, Description = "A compact crafted survival knife." },
+
 	Bandage = { Label = "Bandage", Rarity = "Common", Stack = 10, Description = "Restores 28 health.", Use = "Heal", Heal = 28 },
 	FieldDressing = { Label = "Field Dressing", Rarity = "Uncommon", Stack = 8, Description = "Heavy bandage that restores 55 health.", Use = "Heal", Heal = 55 },
 	CookedMeat = { Label = "Cooked Meat", Rarity = "Common", Stack = 10, Description = "Restores 32 hunger and 8 health.", Use = "Food", Hunger = 32, Heal = 8 },
@@ -34,8 +38,8 @@ SurvivalItemData.Items = {
 	TrailRation = { Label = "Trail Ration", Rarity = "Uncommon", Stack = 8, Description = "Compact food that restores a lot of hunger.", Use = "Food", Hunger = 52, Heal = 5 },
 	BoneBroth = { Label = "Bone Broth", Rarity = "Uncommon", Stack = 6, Description = "Warm meal restoring hunger, thirst, and health.", Use = "Meal", Hunger = 38, Thirst = 20, Heal = 18 },
 	HerbalTea = { Label = "Herbal Tea", Rarity = "Uncommon", Stack = 8, Description = "Restores thirst and a small amount of health.", Use = "Drink", Thirst = 38, Heal = 10 },
-	EmptyFlask = { Label = "Empty Flask", Rarity = "Common", Stack = 6, Description = "Fill this at a river drinking point." },
-	WaterFlask = { Label = "Water Flask", Rarity = "Common", Stack = 6, Description = "Filled river water. Drinking it leaves an empty flask.", Use = "Drink", Thirst = 48, ReturnsItem = "EmptyFlask" },
+	EmptyFlask = { Label = "Empty Water Bottle", Rarity = "Common", Stack = 8, Description = "Carry it to a river or puddle and refill it." },
+	WaterFlask = { Label = "Water Bottle", Rarity = "Common", Stack = 8, Description = "Portable clean water. Drinking it returns an empty bottle.", Use = "Drink", Thirst = 55, ReturnsItem = "EmptyFlask" },
 	HealthPotion = { Label = "Health Potion", Rarity = "Uncommon", Stack = 6, Description = "Instantly restores 45 health.", Use = "Heal", Heal = 45 },
 	SpeedPotion = { Label = "Fleet Potion", Rarity = "Rare", Stack = 4, Description = "+5 movement speed for 25 seconds.", Use = "Buff", Buff = "Speed", Amount = 5, Duration = 25 },
 	FortifyPotion = { Label = "Fortify Potion", Rarity = "Rare", Stack = 4, Description = "+35 maximum health for 30 seconds.", Use = "Buff", Buff = "Fortify", Amount = 35, Duration = 30 },
@@ -43,11 +47,24 @@ SurvivalItemData.Items = {
 	Antidote = { Label = "Antidote", Rarity = "Uncommon", Stack = 5, Description = "Immediately removes poison effects.", Use = "Antidote" },
 	FurWrap = { Label = "Fur Wrap", Rarity = "Rare", Stack = 3, Description = "Greatly reduces snow slowdown for 120 seconds.", Use = "Buff", Buff = "ColdResist", Duration = 120 },
 	Fertilizer = { Label = "Fertilizer", Rarity = "Uncommon", Stack = 10, Description = "Use near a growing crop to instantly advance its growth.", Use = "Fertilizer" },
+
+	LeatherArmor = { Label = "Leather Armor", Rarity = "Uncommon", Stack = 1, Description = "Equip for 10% incoming-damage reduction.", Use = "Armor", ArmorReduction = 0.10, ArmorStyle = "Leather" },
+	FurArmor = { Label = "Fur Armor", Rarity = "Rare", Stack = 1, Description = "Equip for 16% damage reduction and snow resistance.", Use = "Armor", ArmorReduction = 0.16, SnowResist = true, ArmorStyle = "Fur" },
+	StoneplateArmor = { Label = "Stoneplate Armor", Rarity = "Epic", Stack = 1, Description = "Heavy armor with 24% damage reduction but -2 movement speed.", Use = "Armor", ArmorReduction = 0.24, WalkSpeedPenalty = 2, ArmorStyle = "Stone" },
+	DragonforgedArmor = { Label = "Dragonforged Armor", Rarity = "Mythic", Stack = 1, Description = "Dungeon-forged armor with 32% damage reduction.", Use = "Armor", ArmorReduction = 0.32, ArmorStyle = "Dragon" },
+
+	DragonScale = { Label = "Dragon Scale", Rarity = "Legendary", Stack = 12, Description = "Extremely rare dungeon material. Valuable to collectors and advanced crafting.", Collectible = true },
+	DemonCore = { Label = "Demon Core", Rarity = "Legendary", Stack = 8, Description = "A dangerous core taken from a dungeon demon.", Collectible = true },
+	AncientRelic = { Label = "Ancient Relic", Rarity = "Mythic", Stack = 1, Description = "A numbered-feeling trophy-grade dungeon collectible. Very rare.", Collectible = true },
+	EclipseCloak = { Label = "Eclipse Cloak", Rarity = "Mythic", Stack = 1, Description = "Dungeon-only cloak. Equip for +10% damage and +2 movement speed.", Use = "Cloak", DamageMultiplier = 1.10, WalkSpeedBonus = 2, Collectible = true },
+	ObsidianShard = { Label = "Obsidian Shard", Rarity = "Epic", Stack = 16, Description = "Rare cave and dungeon material used in endgame crafting.", Collectible = true },
+
 	Torch = { Label = "Torch", Rarity = "Common", Stack = 6, Description = "Place a temporary light source.", Use = "Place", Structure = "Torch" },
 	WorkbenchKit = { Label = "Workbench Kit", Rarity = "Uncommon", Stack = 3, Description = "Places a crafting workbench for advanced recipes.", Use = "Place", Structure = "Workbench" },
 	ChestKit = { Label = "Chest Kit", Rarity = "Uncommon", Stack = 3, Description = "Places a session-only storage chest with 8 slots.", Use = "Place", Structure = "Chest" },
 	FarmPlotKit = { Label = "Farm Plot Kit", Rarity = "Common", Stack = 5, Description = "Places soil where crops can be planted.", Use = "Place", Structure = "FarmPlot" },
 	CampfireKit = { Label = "Campfire Kit", Rarity = "Common", Stack = 4, Description = "Places a campfire for cooking recipes.", Use = "Place", Structure = "SurvivalCampfire" },
+	BedKit = { Label = "Bed Kit", Rarity = "Uncommon", Stack = 2, Description = "Places a bed. Use the bed to set your respawn point for this server session.", Use = "Place", Structure = "Bed" },
 	SpikeTrapKit = { Label = "Spike Trap Kit", Rarity = "Uncommon", Stack = 5, Description = "Places a damaging survival trap.", Use = "Place", Structure = "SurvivalSpikeTrap" },
 	WebTrapKit = { Label = "Web Trap Kit", Rarity = "Rare", Stack = 4, Description = "Places a sticky trap that slows enemies.", Use = "Place", Structure = "WebTrap" },
 }
