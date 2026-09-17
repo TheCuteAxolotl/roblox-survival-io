@@ -4,7 +4,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 
-local SLOT_COUNT = 10
+local SLOT_COUNT = 34
 local QUICK_SLOT_COUNT = 5
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -45,11 +45,11 @@ end
 
 for _, child in bagPanel:GetChildren() do
 	if child:IsA("TextLabel") and string.find(child.Text, "SURVIVAL BAG", 1, true) == 1 then
-		child.Text = "INVENTORY — 10 SLOTS"
+		child.Text = "INVENTORY — 34 SLOTS"
 	end
 end
 
--- InventoryCraftingUpgrade creates a scrolling ten-slot list. Keep its state logic,
+-- InventoryCraftingUpgrade creates a legacy scrolling list. Keep its state logic,
 -- but hide that presentation and use this fixed grid where every slot is visible.
 task.spawn(function()
 	local old = bagPanel:WaitForChild("TenSlotBagList", 15)
@@ -61,7 +61,7 @@ help.Name = "InventoryHelp"
 help.Position = UDim2.fromOffset(16, 44)
 help.Size = UDim2.new(1, -32, 0, 25)
 help.BackgroundTransparency = 1
-help.Text = UserInputService.TouchEnabled and "ALL 10 SLOTS • TAP USE OR DROP" or "ALL 10 SLOTS • PRESS I TO OPEN/CLOSE • USE OR DROP"
+help.Text = UserInputService.TouchEnabled and "34 SLOTS • STACKS TO 40 • TAP USE OR DROP" or "34 SLOTS • STACKS TO 40 • PRESS I TO OPEN/CLOSE"
 help.TextColor3 = Color3.fromRGB(165, 165, 175)
 help.Font = Enum.Font.GothamBold
 help.TextSize = 9
@@ -69,8 +69,8 @@ help.TextXAlignment = Enum.TextXAlignment.Left
 help.ZIndex = 96
 help.Parent = bagPanel
 
-local grid = Instance.new("Frame")
-grid.Name = "InventoryGrid10"
+local grid = Instance.new("ScrollingFrame")
+grid.Name = "InventoryGrid34"
 grid.Position = UDim2.fromOffset(12, 72)
 grid.Size = UDim2.new(1, -24, 1, -84)
 grid.BackgroundTransparency = 1
