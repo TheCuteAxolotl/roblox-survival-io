@@ -76,8 +76,13 @@ function HatService.Apply(player, hatName)
 	humanoid.UseJumpPower = true
 	humanoid.JumpPower = 42
 	humanoid.WalkSpeed = 16 + (effects.WalkSpeedBonus or 0)
-	humanoid.MaxHealth = 100 + (effects.MaxHealthBonus or 0)
+	humanoid.MaxHealth = math.max(35, 100 + (effects.MaxHealthBonus or 0))
 	humanoid.Health = math.max(1, humanoid.MaxHealth * ratio)
+
+	local equipCost = math.clamp(tonumber(effects.EquipHealthCostPercent) or 0, 0, 0.9)
+	if equipCost > 0 then
+		humanoid.Health = math.max(1, humanoid.Health - humanoid.MaxHealth * equipCost)
+	end
 
 	buildVisual(character, hatName)
 end
