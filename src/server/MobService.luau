@@ -15,6 +15,8 @@ local active = {}
 local initialized = false
 
 local FOREST_CENTER = Vector3.new(0, 0, 365)
+local HAVEN_CENTER = Vector3.new(0, 0, -155)
+local HAVEN_SAFE_RADIUS = 125
 local FOREST_HALF_X = 150
 local FOREST_HALF_Z = 125
 
@@ -61,8 +63,9 @@ end
 local function safePoint(biome)
 	for _ = 1, 50 do
 		local position = randomPoint(biome)
+		local flat = Vector3.new(position.X, 0, position.Z)
+		local blocked = (flat - HAVEN_CENTER).Magnitude < HAVEN_SAFE_RADIUS
 		local hits = Workspace:GetPartBoundsInBox(CFrame.new(position), Vector3.new(9, 8, 9))
-		local blocked = false
 		for _, hit in hits do
 			if CollectionService:HasTag(hit, "PlayerBuild") or CollectionService:HasTag(hit, "ResourceCore") then
 				blocked = true
