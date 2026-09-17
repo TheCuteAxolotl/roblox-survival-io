@@ -25,6 +25,12 @@ MobData.Mobs = {
 		Color = Color3.fromRGB(142, 102, 68),
 		Drops = { { Item = "RawMeat", Min = 2, Max = 3, Chance = 1 }, { Item = "Hide", Min = 1, Max = 2, Chance = 1 } },
 	},
+	WildCattle = {
+		Label = "Wild Cattle", Biome = "Grass", Hostile = false, Health = 145, Damage = 0,
+		WalkSpeed = 12, AggroRange = 0, AttackRange = 0, AttackCooldown = 1, Count = 5,
+		Color = Color3.fromRGB(128, 91, 62),
+		Drops = { { Item = "RawBeef", Min = 2, Max = 4, Chance = 1 }, { Item = "Hide", Min = 1, Max = 3, Chance = 1 }, { Item = "Bone", Min = 1, Max = 2, Chance = 0.5 } },
+	},
 	SnowWolf = {
 		Label = "Snow Wolf", Biome = "Snow", Hostile = true, Health = 105, Damage = 17,
 		WalkSpeed = 18, AggroRange = 68, AttackRange = 4.5, AttackCooldown = 1.1, Count = 7,
