@@ -11,8 +11,8 @@ if not remote then
 	remote.Parent = remotes
 end
 
-local COOLDOWN = 2.15
-local SPEED = 58
+local BASE_COOLDOWN = 2.15
+local BASE_SPEED = 58
 local cooldowns = {}
 
 local function horizontalUnit(direction)
@@ -20,6 +20,13 @@ local function horizontalUnit(direction)
 	local flat = Vector3.new(direction.X, 0, direction.Z)
 	if flat.Magnitude < 0.15 then return nil end
 	return flat.Unit
+end
+
+local function dodgeStats(player)
+	local agility = math.max(1, math.floor(player:GetAttribute("HunterAgilityLevel") or 1))
+	local cooldown = math.max(1.35, BASE_COOLDOWN - (agility - 1) * 0.04)
+	local speed = BASE_SPEED + math.min(10, (agility - 1) * 0.55)
+	return cooldown, speed
 end
 
 remote.OnServerEvent:Connect(function(player, requestedDirection)
@@ -32,18 +39,17 @@ remote.OnServerEvent:Connect(function(player, requestedDirection)
 	if now < (cooldowns[player] or 0) then return end
 
 	local direction = horizontalUnit(requestedDirection)
-	if not direction then
-		direction = horizontalUnit(root.CFrame.LookVector)
-	end
+	if not direction then direction = horizontalUnit(root.CFrame.LookVector) end
 	if not direction then return end
 
-	cooldowns[player] = now + COOLDOWN
-	player:SetAttribute("WildforgeDodgeReadyAt", now + COOLDOWN)
+	local cooldown, speed = dodgeStats(player)
+	cooldowns[player] = now + cooldown
+	player:SetAttribute("WildforgeDodgeReadyAt", now + cooldown)
 	player:SetAttribute("WildforgeDodgeUntil", now + 0.18)
 
 	local oldVelocity = root.AssemblyLinearVelocity
-	root.AssemblyLinearVelocity = Vector3.new(direction.X * SPEED, math.max(oldVelocity.Y, 1.5), direction.Z * SPEED)
-	remote:FireClient(player, COOLDOWN)
+	root.AssemblyLinearVelocity = Vector3.new(direction.X * speed, math.max(oldVelocity.Y, 1.5), direction.Z * speed)
+	remote:FireClient(player, cooldown)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
