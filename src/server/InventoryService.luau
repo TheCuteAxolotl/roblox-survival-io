@@ -8,7 +8,7 @@ local Workspace = game:GetService("Workspace")
 local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 
 local InventoryService = {}
-InventoryService.SLOT_COUNT = 6
+InventoryService.SLOT_COUNT = 10
 InventoryService.Changed = Instance.new("BindableEvent")
 
 local inventories = {}
