@@ -18,13 +18,15 @@ for _, child in arena:GetChildren() do
 	end
 end
 
--- Add two extra central pads so groups do not all stack onto one point.
+-- V3 spawn court sits directly outside Hunter Haven.
 for index, position in {
-	Vector3.new(-115, 1, -235),
-	Vector3.new(115, 1, 235),
+	Vector3.new(-28, 1, -232),
+	Vector3.new(28, 1, -232),
+	Vector3.new(-48, 1, -218),
+	Vector3.new(48, 1, -218),
 } do
 	local spawn = Instance.new("SpawnLocation")
-	spawn.Name = `GrasslandsSpawn{index}`
+	spawn.Name = "HunterHavenSpawn" .. index
 	spawn.Size = Vector3.new(8, 1, 8)
 	spawn.Position = position
 	spawn.Anchored = true
@@ -35,4 +37,4 @@ for index, position in {
 	spawn.Parent = arena
 end
 
-print("[SpawnSafety] Fresh runs now begin in the Grasslands.")
+print("[SpawnSafety] Fresh runs now begin at Hunter Haven beside the Rift hub.")
