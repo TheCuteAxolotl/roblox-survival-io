@@ -119,7 +119,7 @@ RiftRunData.Enemies = {
 	},
 	Gloomfang = {
 		Label = "GLOOMFANG",
-		Health = 1800,
+		Health = 1250,
 		Damage = 34,
 		Speed = 17,
 		Range = 7,
@@ -131,7 +131,7 @@ RiftRunData.Enemies = {
 	},
 	RiftTyrant = {
 		Label = "RIFT TYRANT",
-		Health = 5200,
+		Health = 3200,
 		Damage = 52,
 		Speed = 12,
 		Range = 9,
@@ -144,7 +144,7 @@ RiftRunData.Enemies = {
 	},
 	StormMaw = {
 		Label = "STORM MAW",
-		Health = 6400,
+		Health = 3900,
 		Damage = 63,
 		Speed = 8.5,
 		Range = 11,
@@ -157,7 +157,7 @@ RiftRunData.Enemies = {
 	},
 	VoidStalker = {
 		Label = "VOID STALKER",
-		Health = 4700,
+		Health = 2900,
 		Damage = 46,
 		Speed = 16,
 		Range = 7,
