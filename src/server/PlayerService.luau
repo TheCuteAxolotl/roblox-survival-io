@@ -122,10 +122,10 @@ local function syncLeaderstats(player)
 	local profile = profiles[player]
 	local stats = player:FindFirstChild("leaderstats")
 	if not profile or not stats then return end
-	for _, name in { "Wood", "Stone", "Food", "Gold", "XP", "Age" } do
-		local value = stats:FindFirstChild(name)
-		if value then value.Value = math.floor(profile[name] or 0) end
-	end
+	local gold = stats:FindFirstChild("Gold")
+	local forge = stats:FindFirstChild("Forge")
+	if gold then gold.Value = math.floor(profile.Gold or 0) end
+	if forge then forge.Value = math.floor(profile.Age or 1) end
 end
 
 local function eligibleOptions(profile, age)
@@ -147,7 +147,7 @@ function PlayerService.GetPendingChoice(player)
 	for age = 2, profile.Age do
 		if not profile.Choices[tostring(age)] then
 			local options = eligibleOptions(profile, age)
-			if #options > 0 then return { Age = age, Options = deepCopy(options) } end
+			if #options > 0 then return { Age = age, ForgeLevel = age, Options = deepCopy(options) } end
 		end
 	end
 	return nil
@@ -156,6 +156,7 @@ end
 function PlayerService.GetPublic(player)
 	local profile = profiles[player] or defaultProfile()
 	local public = deepCopy(profile)
+	public.ForgeLevel = public.Age
 	public.PendingChoice = PlayerService.GetPendingChoice(player)
 	return public
 end
@@ -185,17 +186,17 @@ function PlayerService.ChooseUpgrade(player, itemName)
 	local profile = profiles[player]
 	if not profile then return false, "Profile not ready." end
 	local pending = PlayerService.GetPendingChoice(player)
-	if not pending then return false, "No upgrade choice is waiting." end
-	if not table.find(pending.Options, itemName) then return false, "That item is not one of your current choices." end
+	if not pending then return false, "No Forge choice is waiting." end
+	if not table.find(pending.Options, itemName) then return false, "That item is not one of your current Forge choices." end
 	local chosenItem = ItemData.Items[itemName]
 	if not chosenItem then return false, "Unknown upgrade." end
-	if chosenItem.RequiresUnlock and profile.Unlocks[chosenItem.RequiresUnlock] ~= true then return false, "That upgrade does not match your current weapon branch." end
+	if chosenItem.RequiresUnlock and profile.Unlocks[chosenItem.RequiresUnlock] ~= true then return false, "That upgrade does not match your current weapon path." end
 	if chosenItem.UpgradeGroup then
 		for otherName, otherItem in ItemData.Items do if otherItem.UpgradeGroup == chosenItem.UpgradeGroup then profile.Unlocks[otherName] = false end end
 	end
 	profile.Unlocks[itemName] = true
 	profile.Choices[tostring(pending.Age)] = itemName
-	return true, `Unlocked {chosenItem.Label}!`
+	return true, `Forged {chosenItem.Label}!`
 end
 
 function PlayerService.Add(player, changes)
@@ -280,8 +281,9 @@ function PlayerService.TakeDeathDrop(player, ratio)
 	local profile = profiles[player]
 	if not profile then return {} end
 	ratio = math.clamp(tonumber(ratio) or 0.35, 0, 1)
-	local drops = {}
-	for _, resource in { "Wood", "Stone", "Food", "Gold" } do
+	local drops = { Gold = 0 }
+	-- Gold is permanent progression currency. Death only drops run resources.
+	for _, resource in { "Wood", "Stone", "Food" } do
 		local current = math.floor(profile[resource] or 0)
 		local amount = math.floor(current * ratio)
 		profile[resource] = current - amount
@@ -297,12 +299,16 @@ local function makeLeaderstats(player, profile)
 	local folder = Instance.new("Folder")
 	folder.Name = "leaderstats"
 	folder.Parent = player
-	for _, name in { "Wood", "Stone", "Food", "Gold", "XP", "Age" } do
-		local value = Instance.new("IntValue")
-		value.Name = name
-		value.Value = math.floor(profile[name] or 0)
-		value.Parent = folder
-	end
+
+	local forge = Instance.new("IntValue")
+	forge.Name = "Forge"
+	forge.Value = math.floor(profile.Age or 1)
+	forge.Parent = folder
+
+	local gold = Instance.new("IntValue")
+	gold.Name = "Gold"
+	gold.Value = math.floor(profile.Gold or 0)
+	gold.Parent = folder
 end
 
 function PlayerService.Load(player)
