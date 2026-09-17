@@ -2,7 +2,9 @@ local CraftingData = {}
 
 CraftingData.Recipes = {
 	Rope = { Label = "Rope", Rarity = "Common", Station = "Hand", Ingredients = { Items = { Web = 2 } }, Result = { Item = "Rope", Amount = 1 } },
+	DesertRope = { Label = "Desert Rope", Rarity = "Common", Station = "Hand", Ingredients = { Items = { CactusFiber = 3 } }, Result = { Item = "Rope", Amount = 1 } },
 	Cloth = { Label = "Cloth", Rarity = "Common", Station = "Hand", Ingredients = { Items = { Wheat = 3 } }, Result = { Item = "Cloth", Amount = 1 } },
+	DesertCloth = { Label = "Desert Cloth", Rarity = "Common", Station = "Hand", Ingredients = { Items = { CactusFiber = 4 } }, Result = { Item = "Cloth", Amount = 1 } },
 	ReinforcedRope = { Label = "Reinforced Rope", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Items = { Rope = 2, Web = 2 } }, Result = { Item = "ReinforcedRope", Amount = 1 } },
 	WorkbenchKit = { Label = "Workbench Kit", Rarity = "Uncommon", Station = "Hand", Ingredients = { Resources = { Wood = 30, Stone = 15 }, Items = { Rope = 2 } }, Result = { Item = "WorkbenchKit", Amount = 1 } },
 	FarmPlotKit = { Label = "Farm Plot Kit", Rarity = "Common", Station = "Hand", Ingredients = { Resources = { Wood = 12, Stone = 4 } }, Result = { Item = "FarmPlotKit", Amount = 1 } },
@@ -32,7 +34,7 @@ CraftingData.Recipes = {
 }
 
 CraftingData.Order = {
-	"Rope", "Cloth", "WorkbenchKit", "FarmPlotKit", "CampfireKit", "Torch",
+	"Rope", "DesertRope", "Cloth", "DesertCloth", "WorkbenchKit", "FarmPlotKit", "CampfireKit", "Torch",
 	"Bandage", "EmptyFlask", "ChestKit", "ReinforcedRope", "FieldDressing", "HealthPotion",
 	"SpeedPotion", "FortifyPotion", "Antidote", "SpikeTrapKit", "WebTrapKit", "Fertilizer",
 	"LeatherPouch", "BoneKnife", "FurWrap", "CookedMeat", "Charcoal", "BoneBroth",
