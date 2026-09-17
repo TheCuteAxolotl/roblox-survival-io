@@ -27,6 +27,10 @@ local function suppressMeleeSwing()
 	return item and (item.Ranged == true or item.Kind == "Shield" or item.CanAttack == false)
 end
 
+local function refreshTargetFilter()
+	mouse.TargetFilter = isRangedSelected() and workspace or nil
+end
+
 local function fireAtMouse()
 	if not isRangedSelected() then return end
 	local hit = mouse.Hit
@@ -37,6 +41,7 @@ end
 stateChanged.OnClientEvent:Connect(function(payload)
 	if type(payload) == "table" and type(payload.SelectedItem) == "string" then
 		selectedItem = payload.SelectedItem
+		refreshTargetFilter()
 	end
 end)
 
@@ -55,5 +60,8 @@ end)
 
 task.spawn(function()
 	local ok, initial = pcall(function() return getState:InvokeServer() end)
-	if ok and type(initial) == "table" then selectedItem = initial.SelectedItem end
+	if ok and type(initial) == "table" then
+		selectedItem = initial.SelectedItem
+		refreshTargetFilter()
+	end
 end)
