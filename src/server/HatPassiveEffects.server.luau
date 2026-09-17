@@ -18,13 +18,8 @@ task.spawn(function()
 			local profile = PlayerService.Get(player)
 			if not profile then continue end
 
-			local character = player.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			local regen = PlayerService.GetHatEffect(player, "HealthRegenPerSecond", 0)
-			if regen > 0 and humanoid and humanoid.Health > 0 and humanoid.Health < humanoid.MaxHealth then
-				humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + regen)
-			end
-
+			-- No passive health regeneration. Survival healing must come from food,
+			-- medicine or potions the player intentionally consumes.
 			local passiveSeconds = PlayerService.GetHatEffect(player, "PassiveSeconds", 0)
 			local passiveFood = PlayerService.GetHatEffect(player, "PassiveFood", 0)
 			if passiveSeconds > 0 and passiveFood > 0 then
