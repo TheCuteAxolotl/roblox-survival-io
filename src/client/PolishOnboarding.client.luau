@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -77,6 +78,13 @@ local function phase()
 	return ReplicatedStorage:GetAttribute("WildforgePhase") or "Day"
 end
 
+local function firstCampfireInstruction()
+	if UserInputService.TouchEnabled then
+		return "Select the orange CAMPFIRE button on the bottom bar, then tap ACTION to place it near you."
+	end
+	return "Select the orange CAMPFIRE button on the bottom bar (starter slot 3), then click the ground near you."
+end
+
 local function refresh()
 	if needs.Thirst <= 32 then
 		setObjective("Find water or use a filled bottle — dehydration will kill you.", true)
@@ -99,7 +107,7 @@ local function refresh()
 	end
 
 	if (buildCounts.Campfire or 0) < 1 then
-		setObjective("Place a Campfire  • 14 wood + 8 stone • establish a camp before night.", false)
+		setObjective(firstCampfireInstruction(), false)
 		return
 	end
 
