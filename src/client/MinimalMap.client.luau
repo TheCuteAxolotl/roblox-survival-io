@@ -38,18 +38,20 @@ dot.AnchorPoint = Vector2.new(0.5, 0.5)
 dot.Size = UDim2.fromOffset(UserInputService.TouchEnabled and 10 or 9, UserInputService.TouchEnabled and 10 or 9)
 dot.BackgroundColor3 = Color3.fromRGB(255, 225, 92)
 dot.BorderSizePixel = 0
+dot.ZIndex = 4
 dot.Parent = map
 
 local dotCorner = Instance.new("UICorner")
 dotCorner.CornerRadius = UDim.new(1, 0)
 dotCorner.Parent = dot
 
+-- Match the top-down camera orientation: moving toward screen-top now moves the map dot upward.
 RunService.RenderStepped:Connect(function()
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	local half = Config.WorldSize / 2
 	local x = math.clamp((root.Position.X + half) / Config.WorldSize, 0.03, 0.97)
-	local y = math.clamp(1 - ((root.Position.Z + half) / Config.WorldSize), 0.03, 0.97)
+	local y = math.clamp((root.Position.Z + half) / Config.WorldSize, 0.03, 0.97)
 	dot.Position = UDim2.fromScale(x, y)
 end)
