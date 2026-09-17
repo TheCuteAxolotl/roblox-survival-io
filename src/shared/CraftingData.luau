@@ -11,7 +11,7 @@ CraftingData.Recipes = {
 	ChestKit = { Label = "Chest Kit", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Resources = { Wood = 28, Stone = 8 }, Items = { Rope = 1 } }, Result = { Item = "ChestKit", Amount = 1 } },
 	Bandage = { Label = "Bandage", Rarity = "Common", Station = "Workbench", Ingredients = { Items = { Cloth = 1, Herb = 2 } }, Result = { Item = "Bandage", Amount = 2 } },
 	FieldDressing = { Label = "Field Dressing", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Items = { Bandage = 2, Hide = 1 } }, Result = { Item = "FieldDressing", Amount = 1 } },
-	WaterFlask = { Label = "Water Flask", Rarity = "Common", Station = "Workbench", Ingredients = { Items = { Hide = 2, Rope = 1 } }, Result = { Item = "WaterFlask", Amount = 1 } },
+	EmptyFlask = { Label = "Empty Flask", Rarity = "Common", Station = "Workbench", Ingredients = { Items = { Hide = 2, Rope = 1 } }, Result = { Item = "EmptyFlask", Amount = 1 } },
 	HealthPotion = { Label = "Health Potion", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Items = { Herb = 3, WaterFlask = 1 } }, Result = { Item = "HealthPotion", Amount = 1 } },
 	SpeedPotion = { Label = "Fleet Potion", Rarity = "Rare", Station = "Workbench", Ingredients = { Items = { Herb = 2, Web = 2, WaterFlask = 1 } }, Result = { Item = "SpeedPotion", Amount = 1 } },
 	FortifyPotion = { Label = "Fortify Potion", Rarity = "Rare", Station = "Workbench", Ingredients = { Items = { Herb = 3, Bone = 2, WaterFlask = 1 } }, Result = { Item = "FortifyPotion", Amount = 1 } },
@@ -33,7 +33,7 @@ CraftingData.Recipes = {
 
 CraftingData.Order = {
 	"Rope", "Cloth", "WorkbenchKit", "FarmPlotKit", "CampfireKit", "Torch",
-	"Bandage", "WaterFlask", "ChestKit", "ReinforcedRope", "FieldDressing", "HealthPotion",
+	"Bandage", "EmptyFlask", "ChestKit", "ReinforcedRope", "FieldDressing", "HealthPotion",
 	"SpeedPotion", "FortifyPotion", "Antidote", "SpikeTrapKit", "WebTrapKit", "Fertilizer",
 	"LeatherPouch", "BoneKnife", "FurWrap", "CookedMeat", "Charcoal", "BoneBroth",
 	"TrailRation", "HerbalTea", "WheatSeeds", "SurvivalElixir",
