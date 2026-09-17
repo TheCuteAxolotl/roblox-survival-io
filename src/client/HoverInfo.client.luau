@@ -18,7 +18,7 @@ local hoveredItem = nil
 
 local tooltip = Instance.new("Frame")
 tooltip.Name = "ItemHoverTooltip"
-tooltip.Size = UDim2.fromOffset(310, 154)
+tooltip.Size = UDim2.fromOffset(330, 174)
 tooltip.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
 tooltip.BackgroundTransparency = 0.04
 tooltip.Visible = false
@@ -90,6 +90,29 @@ local function effectText(item)
 	return table.concat(effects, "\n")
 end
 
+local function weaponText(item)
+	local lines = {}
+	local slot = item.WeaponSlot == "Secondary" and "SECONDARY" or "PRIMARY"
+	table.insert(lines, slot)
+	if item.Kind == "Shield" then
+		table.insert(lines, `Blocks {math.floor((item.BlockPercent or 0) * 100)}% melee • {math.floor((item.RangedBlockPercent or 0) * 100)}% ranged`)
+	elseif item.PercentHealthDamage then
+		table.insert(lines, `{math.floor(item.PercentHealthDamage * 100)}% MAX HP per hit • Range {item.Range or 0} • Reload {item.Cooldown or 0}s`)
+	elseif item.Ranged then
+		local projectile = item.ProjectileCount and item.ProjectileCount > 1 and ` • {item.ProjectileCount} shots` or ""
+		table.insert(lines, `Damage {item.Damage or 0} • Range {item.Range or 0} • Fire {item.Cooldown or 0}s{projectile}`)
+	else
+		table.insert(lines, `Damage {item.Damage or 0} • Reach {item.Range or 0} • Swing {item.Cooldown or 0}s`)
+	end
+	if item.Knockback then table.insert(lines, `Knockback: {item.Knockback}`) end
+	if item.GoldStealPercent then table.insert(lines, `Steals {math.floor(item.GoldStealPercent * 100)}% carried gold on hit`) end
+	if item.ResourceBonus then table.insert(lines, `Gather bonus: +{item.ResourceBonus} resources`) end
+	if item.StoneBonus then table.insert(lines, `Stone bonus: +{item.StoneBonus}`) end
+	if item.Terminal then table.insert(lines, "Terminal weapon — no later upgrade")
+	elseif item.RequiresUnlock then table.insert(lines, `Upgrade from {ItemData.Items[item.RequiresUnlock] and ItemData.Items[item.RequiresUnlock].Label or item.RequiresUnlock}`) end
+	return table.concat(lines, "\n")
+end
+
 local function refreshTooltip()
 	if not hoveredItem then return end
 	local item = ItemData.Items[hoveredItem]
@@ -109,13 +132,7 @@ local function refreshTooltip()
 			effect ~= "" and `\n{effect}` or ""
 		)
 	elseif item.Category == "Weapon" then
-		body.Text = string.format(
-			"%s\n\nDamage: %d   •   Range: %d   •   Swing: %.2fs",
-			item.Description or "",
-			item.Damage or 0,
-			item.Range or 0,
-			item.Cooldown or 0
-		)
+		body.Text = `{item.Description or ""}\n\n{weaponText(item)}`
 	else
 		body.Text = item.Description or ""
 	end
@@ -160,9 +177,9 @@ end)
 
 RunService.RenderStepped:Connect(function()
 	if not tooltip.Visible then return end
-	local mouse = UserInputService:GetMouseLocation()
+	local mousePos = UserInputService:GetMouseLocation()
 	local viewport = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
-	local x = math.min(mouse.X + 18, viewport.X - tooltip.AbsoluteSize.X - 12)
-	local y = math.max(12, mouse.Y - tooltip.AbsoluteSize.Y - 12)
+	local x = math.min(mousePos.X + 18, viewport.X - tooltip.AbsoluteSize.X - 12)
+	local y = math.max(12, mousePos.Y - tooltip.AbsoluteSize.Y - 12)
 	tooltip.Position = UDim2.fromOffset(x, y)
 end)
