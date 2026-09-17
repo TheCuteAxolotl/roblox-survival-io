@@ -15,11 +15,12 @@ A simple-graphics Roblox survival/PvP game with persistent progression, session 
 - bases are session-only and disappear when their owner leaves
 - place workbenches, chests, farm plots, campfires, torches, and traps
 - grow and harvest wheat
-- craft 28 recipes with Common / Uncommon / Rare / Epic rarities
+- craft 30 recipes with Common / Uncommon / Rare / Epic rarities
 - use healing, speed, fortify, antidote, cold-resistance, and hunger/thirst-suppression consumables
 - buy survival kits and ability hats with earned gold
 - snow slows players unless they have cold protection or the Frost Hood
 - desert survival can be improved with the Desert Veil
+- day/night cycle gives torches and campfires a practical role
 
 ## Existing combat/progression systems
 - primary and secondary weapon branches
