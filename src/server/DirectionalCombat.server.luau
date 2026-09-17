@@ -135,7 +135,9 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		selected[player] = payload
 	elseif actionName == "ChooseUpgrade" and type(payload) == "string" then
 		task.defer(function()
-			if PlayerService.HasUnlock(player, payload) and ItemData.Items[payload] and ItemData.Items[payload].Category == "Weapon" then selected[player] = payload end
+			if PlayerService.HasUnlock(player, payload) and ItemData.Items[payload] and ItemData.Items[payload].Category == "Weapon" then
+				selected[player] = payload
+			end
 		end)
 	end
 end)
@@ -151,7 +153,8 @@ directional.OnServerEvent:Connect(function(player)
 	local hum = character and character:FindFirstChildOfClass("Humanoid")
 	if not root or not hum or hum.Health <= 0 then return end
 
-	local range = math.max(weapon.Range or Config.AttackDistance, weapon.CanGather == false and 0 or Config.GatherDistance)
+	local gatherRange = weapon.CanGather == false and 0 or Config.GatherDistance
+	local range = math.max(weapon.Range or Config.AttackDistance, gatherRange)
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { character }
@@ -178,7 +181,10 @@ directional.OnServerEvent:Connect(function(player)
 			end
 		elseif CollectionService:HasTag(part, "PlayerBuild") and weapon.CanAttack ~= false then
 			seen[key] = true
-			if model and damageBuild(player, model, weapon) then damaged += 1 hitCount += 1 end
+			if model and damageBuild(player, model, weapon) then
+				damaged += 1
+				hitCount += 1
+			end
 		else
 			local targetHum = model and model:FindFirstChildOfClass("Humanoid")
 			if targetHum and targetHum.Health > 0 and weapon.CanAttack ~= false then
