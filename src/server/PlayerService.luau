@@ -4,22 +4,66 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local ItemData = require(ReplicatedStorage.Shared.ItemData)
 
 local PlayerService = {}
 local profiles = {}
 local store = nil
 local persistentEnabled = false
 
-local function copyTable(source)
+local function deepCopy(source)
+	if type(source) ~= "table" then return source end
 	local result = {}
 	for key, value in source do
-		result[key] = value
+		result[deepCopy(key)] = deepCopy(value)
 	end
 	return result
 end
 
+local function starterUnlocks()
+	local unlocks = {}
+	for _, itemName in ItemData.StarterUnlocks do
+		unlocks[itemName] = true
+	end
+	return unlocks
+end
+
 local function defaultProfile()
-	return copyTable(Config.StartingResources)
+	local profile = deepCopy(Config.StartingResources)
+	profile.Unlocks = starterUnlocks()
+	profile.Choices = {}
+	return profile
+end
+
+local function normalizeProfile(raw)
+	local profile = defaultProfile()
+	if type(raw) ~= "table" then return profile end
+
+	for _, key in { "Wood", "Stone", "Food", "Gold", "XP", "Age" } do
+		if type(raw[key]) == "number" then
+			profile[key] = math.max(0, raw[key])
+		end
+	end
+
+	if type(raw.Unlocks) == "table" then
+		for itemName, unlocked in raw.Unlocks do
+			if unlocked == true and ItemData.Items[itemName] then
+				profile.Unlocks[itemName] = true
+			end
+		end
+	end
+
+	if type(raw.Choices) == "table" then
+		for ageKey, itemName in raw.Choices do
+			local age = tonumber(ageKey)
+			if age and type(itemName) == "string" and ItemData.Items[itemName] then
+				profile.Choices[tostring(age)] = itemName
+				profile.Unlocks[itemName] = true
+			end
+		end
+	end
+
+	return profile
 end
 
 local function tryEnableStore()
@@ -28,7 +72,7 @@ local function tryEnableStore()
 		return
 	end
 	local ok, result = pcall(function()
-		return DataStoreService:GetDataStore("SurvivalIO_Player_v1")
+		return DataStoreService:GetDataStore("SurvivalIO_Player_v2")
 	end)
 	if ok then
 		store = result
@@ -36,6 +80,16 @@ local function tryEnableStore()
 	else
 		warn("[PlayerService] DataStore unavailable; using temporary data:", result)
 	end
+end
+
+local function updateAge(profile)
+	for age = #Config.AgeThresholds, 1, -1 do
+		if profile.XP >= Config.AgeThresholds[age] then
+			profile.Age = age
+			return
+		end
+	end
+	profile.Age = 1
 end
 
 local function syncLeaderstats(player)
@@ -53,26 +107,64 @@ function PlayerService.Get(player)
 	return profiles[player]
 end
 
+function PlayerService.GetPendingChoice(player)
+	local profile = profiles[player]
+	if not profile then return nil end
+	for age = 2, profile.Age do
+		local options = ItemData.AgeChoices[age]
+		if options and not profile.Choices[tostring(age)] then
+			return {
+				Age = age,
+				Options = deepCopy(options),
+			}
+		end
+	end
+	return nil
+end
+
 function PlayerService.GetPublic(player)
 	local profile = profiles[player]
-	if not profile then return defaultProfile() end
-	return copyTable(profile)
+	if not profile then profile = defaultProfile() end
+	local public = deepCopy(profile)
+	public.PendingChoice = PlayerService.GetPendingChoice(player)
+	return public
+end
+
+function PlayerService.HasUnlock(player, itemName)
+	local profile = profiles[player]
+	return profile ~= nil and profile.Unlocks[itemName] == true
+end
+
+function PlayerService.ChooseUpgrade(player, itemName)
+	if type(itemName) ~= "string" then return false, "Invalid upgrade." end
+	local profile = profiles[player]
+	if not profile then return false, "Profile not ready." end
+	local pending = PlayerService.GetPendingChoice(player)
+	if not pending then return false, "No upgrade choice is waiting." end
+
+	local allowed = false
+	for _, option in pending.Options do
+		if option == itemName then
+			allowed = true
+			break
+		end
+	end
+	if not allowed then return false, "That item is not one of your current choices." end
+
+	profile.Unlocks[itemName] = true
+	profile.Choices[tostring(pending.Age)] = itemName
+	return true, `Unlocked {ItemData.Items[itemName].Label}!`
 end
 
 function PlayerService.Add(player, changes)
 	local profile = profiles[player]
 	if not profile then return false end
 	for key, amount in changes do
-		if type(amount) == "number" and profile[key] ~= nil then
+		if type(amount) == "number" and type(profile[key]) == "number" then
 			profile[key] = math.max(0, (profile[key] or 0) + amount)
 		end
 	end
-	for age = #Config.AgeThresholds, 1, -1 do
-		if profile.XP >= Config.AgeThresholds[age] then
-			profile.Age = age
-			break
-		end
-	end
+	updateAge(profile)
 	syncLeaderstats(player)
 	return true
 end
@@ -131,12 +223,11 @@ function PlayerService.Load(player)
 	local profile = defaultProfile()
 	if persistentEnabled and store then
 		local ok, data = pcall(function() return store:GetAsync(`p_{player.UserId}`) end)
-		if ok and type(data) == "table" then
-			for key, value in data do
-				if profile[key] ~= nil and type(value) == "number" then profile[key] = value end
-			end
+		if ok then
+			profile = normalizeProfile(data)
 		end
 	end
+	updateAge(profile)
 	profiles[player] = profile
 	makeLeaderstats(player, profile)
 end
@@ -145,7 +236,8 @@ function PlayerService.Save(player)
 	if not persistentEnabled or not store then return end
 	local profile = profiles[player]
 	if not profile then return end
-	pcall(function() store:SetAsync(`p_{player.UserId}`, profile) end)
+	local payload = deepCopy(profile)
+	pcall(function() store:SetAsync(`p_{player.UserId}`, payload) end)
 end
 
 function PlayerService.Init()
