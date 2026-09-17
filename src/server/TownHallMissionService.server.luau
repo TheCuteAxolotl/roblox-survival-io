@@ -86,6 +86,7 @@ local function publicState(player, message)
 		Goal = objective.Amount or 1,
 		RewardGold = mission.Reward.Gold,
 		RewardXP = mission.Reward.XP,
+		ReadyToTurnIn = record.ReadyToTurnIn == true,
 		Message = message,
 		CompletedThisSession = player:GetAttribute("MissionCompletionsSession") or 0,
 	}
@@ -97,9 +98,32 @@ end
 
 local function complete(player)
 	local record = active[player]
-	if not record then return end
+	if not record or record.ReadyToTurnIn then return end
 	local mission = MissionData.Get(record.Id)
 	if not mission then active[player] = nil return end
+	record.ReadyToTurnIn = true
+	nightEligible[player] = nil
+	push(player, "OBJECTIVE COMPLETE • Return to the Hunter Contract Board to turn in your paper.")
+end
+
+local function turnIn(player)
+	local record = active[player]
+	if not record then
+		push(player, "You do not have an active contract to turn in.")
+		return
+	end
+	local mission = MissionData.Get(record.Id)
+	if not mission then
+		active[player] = nil
+		push(player, "That contract could not be found.")
+		return
+	end
+	if record.ReadyToTurnIn ~= true then
+		local goal = mission.Objective.Amount or 1
+		push(player, `Contract not finished yet • {record.Progress}/{goal}`)
+		return
+	end
+
 	local goldMultiplier = math.max(1, player:GetAttribute("HunterGoldMultiplier") or 1)
 	local gold = math.max(1, math.floor((mission.Reward.Gold or 0) * goldMultiplier + 0.5))
 	local xp = mission.Reward.XP or 0
@@ -107,8 +131,7 @@ local function complete(player)
 	player:SetAttribute("MissionCompletionsSession", (player:GetAttribute("MissionCompletionsSession") or 0) + 1)
 	masteryAward:Fire(player, mission.Reward.Mastery or 20, 1)
 	active[player] = nil
-	nightEligible[player] = nil
-	push(player, `CONTRACT COMPLETE • +{gold} Gold • +{xp} Forge XP`)
+	push(player, `CONTRACT TURNED IN • +{gold} Gold • +{xp} Forge XP`)
 end
 
 local function addProgress(player, amount)
@@ -116,6 +139,7 @@ local function addProgress(player, amount)
 	if not record then return end
 	local mission = MissionData.Get(record.Id)
 	if not mission then return end
+	if record.ReadyToTurnIn then return end
 	local goal = mission.Objective.Amount or 1
 	record.Progress = math.clamp(record.Progress + math.max(0, amount or 0), 0, goal)
 	if record.Progress >= goal then complete(player) else push(player) end
@@ -156,6 +180,8 @@ missionAction.OnServerEvent:Connect(function(player, actionName, payload)
 		end
 	elseif actionName == "Accept" and type(payload) == "string" then
 		accept(player, payload)
+	elseif actionName == "TurnIn" then
+		turnIn(player)
 	end
 end)
 
@@ -373,6 +399,16 @@ local function buildTownHall(center)
 	local board = part(hall, "MissionBoard", Vector3.new(58, 15, 1.3), CFrame.new(center + Vector3.new(0, 8, -31)), darkWood, Enum.Material.WoodPlanks)
 	addSurfaceText(board, Enum.NormalId.Front, "HUNTER CONTRACTS", Color3.fromRGB(246, 218, 142), Enum.Font.GothamBlack)
 
+	local turnInPrompt = Instance.new("ProximityPrompt")
+	turnInPrompt.Name = "TurnInContractPrompt"
+	turnInPrompt.ActionText = "Turn In Contract"
+	turnInPrompt.ObjectText = "Hunter Contract Board"
+	turnInPrompt.MaxActivationDistance = 13
+	turnInPrompt.HoldDuration = 0.35
+	turnInPrompt.RequiresLineOfSight = false
+	turnInPrompt.Parent = board
+	turnInPrompt.Triggered:Connect(turnIn)
+
 	for index, missionId in MissionData.Order do
 		local mission = MissionData.Get(missionId)
 		local col = (index - 1) % 4
@@ -392,7 +428,7 @@ local function buildTownHall(center)
 	end
 
 	local info = part(hall, "MissionInfo", Vector3.new(24, 6, 1), CFrame.new(center + Vector3.new(0, 4, -40)), wood, Enum.Material.WoodPlanks)
-	addSurfaceText(info, Enum.NormalId.Front, "TAKE ONE CONTRACT\nCOMPLETE IT • GET PAID\nRETURN FOR ANOTHER", Color3.fromRGB(244, 226, 183), Enum.Font.GothamBold)
+	addSurfaceText(info, Enum.NormalId.Front, "TAKE A PAPER CONTRACT\nCOMPLETE THE OBJECTIVE\nRETURN HERE • TURN IT IN • GET PAID", Color3.fromRGB(244, 226, 183), Enum.Font.GothamBold)
 	print(string.format("[TownHallMissionService] Hunter Town Hall generated at %.0f, %.0f with %d repeatable contracts.", center.X, center.Z, #MissionData.Order))
 end
 
