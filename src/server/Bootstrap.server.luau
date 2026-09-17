@@ -41,13 +41,17 @@ MonetizationService.Init(PlayerService)
 local cooldowns = {}
 local selectedItems = {}
 
+local function defaultSelected(player)
+	return PlayerService.GetPrimaryWeapon(player)
+end
+
 local function sendState(player, message, fx)
 	if not player or not player.Parent then return end
 	stateChanged:FireClient(player, {
 		Profile = PlayerService.GetPublic(player),
 		Message = message,
 		FX = fx,
-		SelectedItem = selectedItems[player] or "Axe",
+		SelectedItem = selectedItems[player] or defaultSelected(player),
 		BuildCounts = BuildService.GetOwnedCounts(player),
 	})
 end
@@ -71,11 +75,11 @@ local function validDistance(player, target, maxDistance)
 end
 
 local function getSelectedWeapon(player)
-	local itemName = selectedItems[player] or "Axe"
+	local itemName = selectedItems[player] or defaultSelected(player)
 	local item = ItemData.Items[itemName]
 	if not item or item.Category ~= "Weapon" or not PlayerService.HasUnlock(player, itemName) then
-		itemName = "Axe"
-		item = ItemData.Items.Axe
+		itemName = defaultSelected(player)
+		item = ItemData.Items[itemName] or ItemData.Items.Axe
 		selectedItems[player] = itemName
 	end
 	return itemName, item
@@ -111,7 +115,12 @@ local function applyCharacterSetup(player, character)
 end
 
 local function setupPlayer(player)
-	selectedItems[player] = "Axe"
+	selectedItems[player] = nil
+	task.spawn(function()
+		if waitForProfile(player) then
+			selectedItems[player] = defaultSelected(player)
+		end
+	end)
 	player.CharacterAdded:Connect(function(character)
 		task.spawn(applyCharacterSetup, player, character)
 	end)
@@ -124,7 +133,7 @@ for _, player in Players:GetPlayers() do setupPlayer(player) end
 getState.OnServerInvoke = function(player)
 	return {
 		Profile = PlayerService.GetPublic(player),
-		SelectedItem = selectedItems[player] or "Axe",
+		SelectedItem = selectedItems[player] or defaultSelected(player),
 		BuildCounts = BuildService.GetOwnedCounts(player),
 	}
 end
@@ -169,7 +178,19 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 	end
 
 	if actionName == "ChooseUpgrade" then
+		local oldSelected = selectedItems[player]
+		local oldItem = oldSelected and ItemData.Items[oldSelected]
 		local success, message = PlayerService.ChooseUpgrade(player, payload)
+		if success then
+			local chosen = ItemData.Items[payload]
+			if chosen and chosen.UpgradeGroup == "PrimaryWeapon" then
+				selectedItems[player] = payload
+			elseif chosen and oldItem and chosen.UpgradeGroup and oldItem.UpgradeGroup == chosen.UpgradeGroup then
+				selectedItems[player] = payload
+			elseif oldSelected and not PlayerService.HasUnlock(player, oldSelected) then
+				selectedItems[player] = defaultSelected(player)
+			end
+		end
 		sendState(player, message, success and { Kind = "Upgrade" } or nil)
 		return
 	end
@@ -298,38 +319,80 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 	end
 end)
 
--- Passive building effects.
-task.spawn(function()
-	while true do
-		task.wait(7)
-		local arena = Workspace:FindFirstChild("SurvivalArena")
-		if arena then
-			for _, model in arena:GetChildren() do
-				if model:IsA("Model") and model:GetAttribute("BuildType") == "Windmill" then
-					local owner = Players:GetPlayerByUserId(model:GetAttribute("OwnerUserId") or 0)
-					if owner then
-						PlayerService.Add(owner, { Gold = 4 })
-						sendState(owner, nil, { Kind = "Windmill" })
-					end
+local function nearestEnemy(owner, position, range)
+	local bestHumanoid = nil
+	local bestDistance = range
+	for _, other in Players:GetPlayers() do
+		if other ~= owner then
+			local character = other.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if root and humanoid and humanoid.Health > 0 then
+				local distance = (root.Position - position).Magnitude
+				if distance <= bestDistance then
+					bestDistance = distance
+					bestHumanoid = humanoid
 				end
 			end
 		end
 	end
-end)
+	return bestHumanoid
+end
 
+-- Passive structure effects and automated defenses.
 task.spawn(function()
 	while true do
 		task.wait(1)
 		local arena = Workspace:FindFirstChild("SurvivalArena")
-		if arena then
-			for _, model in arena:GetChildren() do
-				if model:IsA("Model") and model:GetAttribute("BuildType") == "Campfire" and model.PrimaryPart then
-					local owner = Players:GetPlayerByUserId(model:GetAttribute("OwnerUserId") or 0)
-					local character = owner and owner.Character
-					local root = character and character:FindFirstChild("HumanoidRootPart")
-					local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-					if root and humanoid and humanoid.Health > 0 and (root.Position - model.PrimaryPart.Position).Magnitude <= 18 then
-						humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 4)
+		if not arena then continue end
+		local now = os.clock()
+
+		for _, model in arena:GetChildren() do
+			if not model:IsA("Model") or not model.PrimaryPart then continue end
+			local buildType = model:GetAttribute("BuildType")
+			local item = buildType and ItemData.Items[buildType]
+			if not item then continue end
+			local owner = Players:GetPlayerByUserId(model:GetAttribute("OwnerUserId") or 0)
+
+			if owner and (item.GoldPerTick or item.WoodPerTick) then
+				local nextPassive = model:GetAttribute("NextPassiveAt")
+				if type(nextPassive) ~= "number" then
+					nextPassive = now + (item.TickSeconds or 8)
+					model:SetAttribute("NextPassiveAt", nextPassive)
+				end
+				if now >= nextPassive then
+					local grant = {}
+					if item.GoldPerTick then grant.Gold = item.GoldPerTick end
+					if item.WoodPerTick then grant.Wood = item.WoodPerTick end
+					PlayerService.Add(owner, grant)
+					model:SetAttribute("NextPassiveAt", now + (item.TickSeconds or 8))
+					sendState(owner, nil, { Kind = item.GoldPerTick and "Windmill" or "Resource" })
+				end
+			end
+
+			if owner and item.HealPerSecond then
+				local character = owner.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if root and humanoid and humanoid.Health > 0 and (root.Position - model.PrimaryPart.Position).Magnitude <= (item.EffectRange or 16) then
+					humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + item.HealPerSecond)
+				end
+			elseif owner and buildType == "Campfire" then
+				local character = owner.Character
+				local root = character and character:FindFirstChild("HumanoidRootPart")
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				if root and humanoid and humanoid.Health > 0 and (root.Position - model.PrimaryPart.Position).Magnitude <= 18 then
+					humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 4)
+				end
+			end
+
+			if owner and item.TurretDamage then
+				local nextAttack = model:GetAttribute("NextAttackAt") or 0
+				if now >= nextAttack then
+					local targetHumanoid = nearestEnemy(owner, model.PrimaryPart.Position, item.TurretRange or 50)
+					if targetHumanoid then
+						targetHumanoid:TakeDamage(item.TurretDamage)
+						model:SetAttribute("NextAttackAt", now + (item.TurretCooldown or 1.5))
 					end
 				end
 			end
