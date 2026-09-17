@@ -143,6 +143,37 @@ MobData.Mobs = {
 		Drops = { { Item = "Food", Min = 6, Max = 10, Chance = 1 }, { Item = "Fur", Min = 3, Max = 6, Chance = 1 }, { Item = "Bone", Min = 3, Max = 6, Chance = 1 } },
 	},
 
+	GlacierLeopard = {
+		Label = "Glacier Leopard", Biome = "Highlands", Hostile = true, Archetype = "Canine", Health = 230, Damage = 34,
+		WalkSpeed = 23, AggroRange = 82, AttackRange = 5, AttackCooldown = 0.82, Count = 4,
+		Color = Color3.fromRGB(178, 194, 207), Scale = 0.98, GoldReward = 13, XPReward = 30,
+		Drops = { { Item = "Food", Min = 2, Max = 4, Chance = 1 }, { Item = "Fur", Min = 1, Max = 3, Chance = 0.9 }, { Item = "DireFang", Min = 1, Max = 1, Chance = 0.18 } },
+	},
+	SandBoar = {
+		Label = "Razorback Dune Boar", Biome = "Dunes", Hostile = true, Archetype = "Boar", Health = 245, Damage = 39,
+		WalkSpeed = 18, AggroRange = 60, AttackRange = 5.4, AttackCooldown = 1.05, Count = 4,
+		Color = Color3.fromRGB(153, 111, 69), Scale = 1.22, GoldReward = 12, XPReward = 28,
+		Drops = { { Item = "Food", Min = 3, Max = 5, Chance = 1 }, { Item = "Hide", Min = 1, Max = 3, Chance = 0.9 }, { Item = "Bone", Min = 1, Max = 2, Chance = 0.6 } },
+	},
+	MarshBear = {
+		Label = "Mire Bear", Biome = "Marsh", Hostile = true, Archetype = "Bear", Health = 420, Damage = 50,
+		WalkSpeed = 15, AggroRange = 76, AttackRange = 6.2, AttackCooldown = 1.35, Count = 3,
+		Color = Color3.fromRGB(66, 76, 58), Scale = 1.7, GoldReward = 24, XPReward = 50,
+		Drops = { { Item = "Food", Min = 4, Max = 7, Chance = 1 }, { Item = "Hide", Min = 2, Max = 4, Chance = 1 }, { Item = "Fur", Min = 1, Max = 3, Chance = 0.75 } },
+	},
+	AshHound = {
+		Label = "Ash Hound", Biome = "Grove", Hostile = true, Archetype = "Canine", Health = 260, Damage = 38,
+		WalkSpeed = 24, AggroRange = 86, AttackRange = 5.2, AttackCooldown = 0.76, Count = 4,
+		Color = Color3.fromRGB(77, 53, 49), Scale = 1.02, GoldReward = 15, XPReward = 32,
+		Drops = { { Item = "Food", Min = 2, Max = 4, Chance = 1 }, { Item = "Hide", Min = 1, Max = 2, Chance = 0.85 }, { Item = "DireFang", Min = 1, Max = 1, Chance = 0.24 } },
+	},
+	CrystalStag = {
+		Label = "Prism Stag", Biome = "Crystal", Hostile = false, Archetype = "Deer", Health = 190, Damage = 0,
+		WalkSpeed = 23, AggroRange = 0, AttackRange = 0, AttackCooldown = 1, Count = 4,
+		Color = Color3.fromRGB(111, 130, 171), Scale = 1.2, GoldReward = 8, XPReward = 18,
+		Drops = { { Item = "Food", Min = 3, Max = 5, Chance = 1 }, { Item = "Hide", Min = 2, Max = 3, Chance = 1 }, { Item = "ObsidianShard", Min = 1, Max = 1, Chance = 0.08 } },
+	},
+
 }
 
 return MobData
