@@ -3,6 +3,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local PlayerService = require(script.Parent.PlayerService)
+local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
+local stateChanged = remotes:WaitForChild("StateChanged")
 
 local XP_BY_MILL = {
 	Windmill = { XP = 1, Gold = 1, Seconds = 8 },
@@ -29,6 +31,10 @@ local function processMill(model, now)
 	local changes = { XP = xp }
 	if bonusGold > 0 then changes.Gold = bonusGold end
 	PlayerService.Add(owner, changes)
+	stateChanged:FireClient(owner, {
+		Profile = PlayerService.GetPublic(owner),
+		FX = { Kind = "WindmillXP" },
+	})
 end
 
 task.spawn(function()
