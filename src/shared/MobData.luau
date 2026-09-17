@@ -82,6 +82,67 @@ MobData.Mobs = {
 			{ Item = "ForestHeart", Min = 1, Max = 1, Chance = 0.12 },
 		},
 	},
+	FrostRam = {
+		Label = "Frost Ram", Biome = "Highlands", Hostile = false, Archetype = "Deer", Health = 150, Damage = 0,
+		WalkSpeed = 19, AggroRange = 0, AttackRange = 0, AttackCooldown = 1, Count = 4,
+		Color = Color3.fromRGB(191, 202, 211), Scale = 1.12,
+		Drops = { { Item = "Food", Min = 2, Max = 4, Chance = 1 }, { Item = "Fur", Min = 1, Max = 2, Chance = 0.85 }, { Item = "Bone", Min = 1, Max = 2, Chance = 0.5 } },
+	},
+	IceGolem = {
+		Label = "Icebound Golem", Biome = "Highlands", Hostile = true, Archetype = "Golem", Health = 460, Damage = 52,
+		WalkSpeed = 10, AggroRange = 72, AttackRange = 6.5, AttackCooldown = 1.55, Count = 3,
+		Color = Color3.fromRGB(129, 151, 166), Scale = 1.45, GoldReward = 28, XPReward = 58,
+		Drops = { { Item = "ObsidianShard", Min = 1, Max = 1, Chance = 0.18 }, { Item = "Bone", Min = 1, Max = 2, Chance = 0.45 } },
+	},
+	SandHyena = {
+		Label = "Sand Hyena", Biome = "Dunes", Hostile = true, Archetype = "Canine", Health = 135, Damage = 25,
+		WalkSpeed = 21, AggroRange = 70, AttackRange = 4.8, AttackCooldown = 0.95, Count = 5,
+		Color = Color3.fromRGB(173, 137, 82), Scale = 0.95, GoldReward = 7, XPReward = 16,
+		Drops = { { Item = "Food", Min = 1, Max = 3, Chance = 1 }, { Item = "Hide", Min = 1, Max = 2, Chance = 0.8 }, { Item = "Bone", Min = 1, Max = 1, Chance = 0.4 } },
+	},
+	DuneTitan = {
+		Label = "Dune Titan Scorpion", Biome = "Dunes", Hostile = true, Archetype = "Scorpion", Health = 310, Damage = 38,
+		WalkSpeed = 16, AggroRange = 68, AttackRange = 5, AttackCooldown = 1.0, Count = 3,
+		Color = Color3.fromRGB(153, 87, 45), PoisonChance = 0.7, Scale = 1.35, GoldReward = 18, XPReward = 38,
+		Drops = { { Item = "Venom", Min = 2, Max = 4, Chance = 1 }, { Item = "Bone", Min = 1, Max = 3, Chance = 0.55 } },
+	},
+	MireBoar = {
+		Label = "Mire Boar", Biome = "Marsh", Hostile = true, Archetype = "Boar", Health = 210, Damage = 33,
+		WalkSpeed = 17, AggroRange = 58, AttackRange = 5, AttackCooldown = 1.15, Count = 4,
+		Color = Color3.fromRGB(74, 91, 65), Scale = 1.18, GoldReward = 10, XPReward = 24,
+		Drops = { { Item = "Food", Min = 3, Max = 5, Chance = 1 }, { Item = "Hide", Min = 1, Max = 3, Chance = 0.9 }, { Item = "Bone", Min = 1, Max = 2, Chance = 0.6 } },
+	},
+	BogCrawler = {
+		Label = "Bog Crawler", Biome = "Marsh", Hostile = true, NightOnly = true, Archetype = "Spider", Health = 125, Damage = 21,
+		WalkSpeed = 20, AggroRange = 58, AttackRange = 4, AttackCooldown = 0.78, Count = 5,
+		Color = Color3.fromRGB(52, 78, 58), PoisonChance = 0.62, Scale = 1.02, GoldReward = 9, XPReward = 20,
+		Drops = { { Item = "Web", Min = 2, Max = 4, Chance = 1 }, { Item = "Venom", Min = 1, Max = 2, Chance = 0.75 } },
+	},
+	EmberStag = {
+		Label = "Ember Stag", Biome = "Grove", Hostile = false, Archetype = "Deer", Health = 170, Damage = 0,
+		WalkSpeed = 21, AggroRange = 0, AttackRange = 0, AttackCooldown = 1, Count = 4,
+		Color = Color3.fromRGB(162, 76, 51), Scale = 1.22, GoldReward = 5, XPReward = 14,
+		Drops = { { Item = "Food", Min = 3, Max = 5, Chance = 1 }, { Item = "Hide", Min = 2, Max = 3, Chance = 1 }, { Item = "ForestHeart", Min = 1, Max = 1, Chance = 0.025 } },
+	},
+	EmberWolf = {
+		Label = "Ember Wolf", Biome = "Grove", Hostile = true, Archetype = "Canine", Health = 190, Damage = 31,
+		WalkSpeed = 22, AggroRange = 76, AttackRange = 5, AttackCooldown = 0.9, Count = 5,
+		Color = Color3.fromRGB(104, 53, 46), Scale = 1.08, GoldReward = 11, XPReward = 25,
+		Drops = { { Item = "Food", Min = 2, Max = 4, Chance = 1 }, { Item = "Hide", Min = 1, Max = 2, Chance = 0.85 }, { Item = "DireFang", Min = 1, Max = 1, Chance = 0.22 } },
+	},
+	CrystalGolem = {
+		Label = "Crystal Golem", Biome = "Crystal", Hostile = true, Archetype = "Golem", Health = 560, Damage = 57,
+		WalkSpeed = 11, AggroRange = 78, AttackRange = 7, AttackCooldown = 1.45, Count = 3,
+		Color = Color3.fromRGB(87, 104, 132), Scale = 1.55, GoldReward = 34, XPReward = 72,
+		Drops = { { Item = "ObsidianShard", Min = 1, Max = 2, Chance = 0.5 }, { Item = "AncientRelic", Min = 1, Max = 1, Chance = 0.004 } },
+	},
+	Mammoth = {
+		Label = "Woolly Mammoth", Biome = "Highlands", Hostile = false, Archetype = "Mammoth", Health = 520, Damage = 0,
+		WalkSpeed = 12, AggroRange = 0, AttackRange = 0, AttackCooldown = 1, Count = 2,
+		Color = Color3.fromRGB(116, 92, 76), Scale = 1.65,
+		Drops = { { Item = "Food", Min = 6, Max = 10, Chance = 1 }, { Item = "Fur", Min = 3, Max = 6, Chance = 1 }, { Item = "Bone", Min = 3, Max = 6, Chance = 1 } },
+	},
+
 }
 
 return MobData
