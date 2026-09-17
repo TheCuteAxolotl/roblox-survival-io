@@ -8,7 +8,9 @@ local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 local errors = {}
 local validStations = { Hand = true, Workbench = true, Campfire = true }
 local validRarities = {}
+local validCategories = {}
 for _, rarity in SurvivalItemData.RarityOrder do validRarities[rarity] = true end
+for _, category in CraftingData.Categories or {} do validCategories[category] = true end
 
 for itemName, item in SurvivalItemData.Items do
 	if type(item.Label) ~= "string" or item.Label == "" then table.insert(errors, `Item {itemName} has no label.`) end
@@ -18,6 +20,7 @@ end
 
 for recipeName, recipe in CraftingData.Recipes do
 	if not validStations[recipe.Station] then table.insert(errors, `Recipe {recipeName} has invalid station {tostring(recipe.Station)}.`) end
+	if not validCategories[recipe.Category] or recipe.Category == "All" then table.insert(errors, `Recipe {recipeName} has invalid category {tostring(recipe.Category)}.`) end
 	local resultName = recipe.Result and recipe.Result.Item
 	if not resultName or not SurvivalItemData.Items[resultName] then table.insert(errors, `Recipe {recipeName} produces missing item {tostring(resultName)}.`) end
 	for itemName in recipe.Ingredients and recipe.Ingredients.Items or {} do
@@ -47,5 +50,5 @@ if #errors > 0 then
 	for _, message in errors do warn(`[SurvivalConfigValidation] {message}`) end
 	error(`[SurvivalConfigValidation] Found {#errors} survival configuration error(s).`)
 else
-	print(`[SurvivalConfigValidation] Passed: {#CraftingData.Order} recipes, 6 inventory slots, kits and mob loot validated.`)
+	print(`[SurvivalConfigValidation] Passed: {#CraftingData.Order} recipes, 10 inventory slots, crafting categories, kits and mob loot validated.`)
 end
