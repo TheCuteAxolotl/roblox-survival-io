@@ -37,6 +37,8 @@ local run = {
 	Token = 0,
 	ExtractAvailable = false,
 	Modifier = "Standard",
+	StageSpawning = false,
+	StageTimerEnds = 0,
 }
 
 local gatePosition = Vector3.new(0, 2, -180)
@@ -103,6 +105,7 @@ local function publicState(player, message)
 		StageLabel = run.StageLabel,
 		PartySize = participantCount(),
 		LiveEnemies = liveCount(),
+		StageTimeRemaining = math.max(0, math.ceil((run.StageTimerEnds or 0) - Workspace:GetServerTimeNow())),
 		RallyRemaining = math.max(0, math.ceil(run.RallyEnds - Workspace:GetServerTimeNow())),
 		InRun = player and run.Participants[player] == true or false,
 		BankGold = player and (player:GetAttribute("RiftBankGold") or 0) or 0,
@@ -695,6 +698,8 @@ local function spawnStage(stageIndex)
 	if not stage then return end
 	run.Stage = stageIndex
 	run.StageLabel = stage.Label
+	run.StageSpawning = false
+	run.StageTimerEnds = 0
 	for player in run.Participants do
 		player:SetAttribute("RiftBestStageSession", math.max(player:GetAttribute("RiftBestStageSession") or 0, stageIndex))
 	end
@@ -711,6 +716,27 @@ local function spawnStage(stageIndex)
 	elseif stage.Kind == "Mixed" then
 		for _ = 1, math.max(1, math.floor(stage.BaseCount * countScale + 0.5)) do spawnEnemy(stage.Enemy, randomArenaPoint()) end
 		for _ = 1, math.max(1, math.floor((stage.Brutes or 0) * countScale + 0.5)) do spawnEnemy("RiftBrute", randomArenaPoint()) end
+	elseif stage.Kind == "Survival" then
+		run.StageSpawning = true
+		run.StageTimerEnds = Workspace:GetServerTimeNow() + (stage.Duration or 30)
+		task.spawn(function()
+			local nextSpawn = 0
+			while run.Status == "Active" and run.Stage == stageIndex and Workspace:GetServerTimeNow() < run.StageTimerEnds and participantCount() > 0 do
+				local now = Workspace:GetServerTimeNow()
+				if now >= nextSpawn then
+					nextSpawn = now + (stage.SpawnEvery or 3.5)
+					local waveCount = math.max(1, math.floor(2 * countScale + 0.5))
+					for i = 1, waveCount do
+						local enemy = (i % 4 == 0) and "RiftBrute" or stage.Enemy
+						spawnEnemy(enemy, randomArenaPoint())
+					end
+				end
+				pushAll()
+				task.wait(0.35)
+			end
+			if run.Stage == stageIndex then run.StageSpawning = false end
+			pushAll("STORM ENDED - Finish the remaining corrupted enemies.")
+		end)
 	elseif stage.Kind == "Boss" then
 		spawnEnemy(stage.Enemy, center + Vector3.new(0, 2, 28))
 		for _ = 1, math.max(0, math.floor((stage.Adds or 0) * countScale + 0.5)) do
@@ -751,6 +777,8 @@ local function endRunIfEmpty()
 		run.Stage = 0
 		run.StageLabel = ""
 		run.ExtractAvailable = false
+		run.StageSpawning = false
+		run.StageTimerEnds = 0
 		if extractPrompt then extractPrompt.Enabled = false end
 		if gatePrompt then gatePrompt.Enabled = true gatePrompt.ActionText = "Join Expedition" end
 		return true
@@ -781,7 +809,7 @@ local function beginExpedition()
 	for stage = 1, RiftData.MaxStages do
 		if endRunIfEmpty() then return end
 		spawnStage(stage)
-		while liveCount() > 0 and participantCount() > 0 do task.wait(0.35) end
+		while (liveCount() > 0 or run.StageSpawning) and participantCount() > 0 do task.wait(0.35) end
 		if endRunIfEmpty() then return end
 		awardStage(stage)
 
