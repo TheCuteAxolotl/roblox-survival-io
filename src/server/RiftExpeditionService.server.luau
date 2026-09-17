@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local RiftData = require(ReplicatedStorage.Shared.RiftRunData)
+local Config = require(ReplicatedStorage.Shared.Config)
 local MobService = require(script.Parent.MobService)
 local PlayerService = require(script.Parent.PlayerService)
 
@@ -176,7 +177,7 @@ local function restoreMovement(player)
 	if not hum then return end
 	local skill = player:GetAttribute("HunterSpeedBonus") or 0
 	local rift = player:GetAttribute("RiftSpeedBonus") or 0
-	hum.WalkSpeed = 16 + skill + rift
+	hum.WalkSpeed = (Config.BaseWalkSpeed or 20) + skill + rift
 end
 
 local function teleportPlayer(player, position)
