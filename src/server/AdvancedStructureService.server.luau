@@ -93,14 +93,14 @@ local function placementPosition(player, data)
 	look = look.Unit
 	local distance = math.max(9, data.Footprint.Z / 2 + 6)
 	local raw = root.Position + look * distance
-	return Vector3.new(math.floor(raw.X + 0.5), 0, math.floor(raw.Z + 0.5)), math.atan2(-look.X, -look.Z)
+	return Vector3.new(math.floor(raw.X + 0.5), data.PlacementY or 0, math.floor(raw.Z + 0.5)), math.atan2(-look.X, -look.Z)
 end
 
 local function placementClear(player, data, position, yaw)
 	local half = Config.WorldSize / 2
 	if math.abs(position.X) + data.Footprint.X / 2 + 4 > half or math.abs(position.Z) + data.Footprint.Z / 2 + 4 > half then return false, "Too close to the edge of the world." end
 	if math.abs(position.Z) < Config.RiverHalfWidth + data.Footprint.Z / 2 + 5 then return false, "Build away from the river." end
-	local cf = CFrame.new(position.X, data.Footprint.Y / 2, position.Z) * CFrame.Angles(0, yaw, 0)
+	local cf = CFrame.new(position.X, position.Y + data.Footprint.Y / 2, position.Z) * CFrame.Angles(0, yaw, 0)
 	local params = OverlapParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = player.Character and { player.Character } or {}
@@ -121,7 +121,42 @@ local function buildVisual(structureName, position, yaw)
 	local stone = Color3.fromRGB(103, 106, 111)
 	local metal = Color3.fromRGB(81, 84, 91)
 
-	if structureName == "Barricade" then
+	if structureName == "WoodFloor" then
+		local base = makePart(model, "Floor", Vector3.new(12, 1, 12), cf * CFrame.new(0, 0.5, 0), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		for _, z in { -4, 0, 4 } do makePart(model, "FloorBrace", Vector3.new(11.5, 0.35, 0.45), cf * CFrame.new(0, 1.05, z), dark, Enum.Material.Wood) end
+	elseif structureName == "Fence" then
+		local base = makePart(model, "FenceRail", Vector3.new(10, 0.55, 0.55), cf * CFrame.new(0, 2.5, 0), wood, Enum.Material.Wood)
+		model.PrimaryPart = base
+		makePart(model, "FenceRail", Vector3.new(10, 0.55, 0.55), cf * CFrame.new(0, 1.2, 0), wood, Enum.Material.Wood)
+		for _, x in { -4.5, 0, 4.5 } do makePart(model, "FencePost", Vector3.new(0.7, 4, 0.7), cf * CFrame.new(x, 2, 0), dark, Enum.Material.Wood) end
+	elseif structureName == "DoorFrame" then
+		local base = makePart(model, "DoorThreshold", Vector3.new(12, 0.7, 2), cf * CFrame.new(0, 0.35, 0), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		makePart(model, "DoorPost", Vector3.new(2.2, 10, 2), cf * CFrame.new(-4.9, 5, 0), wood, Enum.Material.WoodPlanks)
+		makePart(model, "DoorPost", Vector3.new(2.2, 10, 2), cf * CFrame.new(4.9, 5, 0), wood, Enum.Material.WoodPlanks)
+		makePart(model, "DoorHeader", Vector3.new(12, 2, 2), cf * CFrame.new(0, 9, 0), dark, Enum.Material.Wood)
+	elseif structureName == "Stairs" then
+		local base = makePart(model, "StairBase", Vector3.new(8, 0.8, 2), cf * CFrame.new(0, 0.4, 5), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		for i = 0, 5 do
+			local y = 0.5 + i * 1.05
+			local z = 5 - i * 2
+			makePart(model, "Step", Vector3.new(8, 1, 2.2), cf * CFrame.new(0, y, z), wood, Enum.Material.WoodPlanks)
+		end
+	elseif structureName == "RaisedPlatform" then
+		local base = makePart(model, "PlatformDeck", Vector3.new(12, 1, 12), cf * CFrame.new(0, 7, 0), wood, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		for _, x in { -5, 5 } do
+			for _, z in { -5, 5 } do
+				makePart(model, "PlatformSupport", Vector3.new(1, 7, 1), cf * CFrame.new(x, 3.5, z), dark, Enum.Material.Wood)
+			end
+		end
+	elseif structureName == "WoodRoof" then
+		local base = makePart(model, "Roof", Vector3.new(12, 1, 12), cf * CFrame.new(0, 0.5, 0), dark, Enum.Material.WoodPlanks)
+		model.PrimaryPart = base
+		for _, x in { -5.4, 5.4 } do makePart(model, "RoofTrim", Vector3.new(0.45, 1.5, 12), cf * CFrame.new(x, 0.5, 0), wood, Enum.Material.Wood) end
+	elseif structureName == "Barricade" then
 		local base = makePart(model, "Barricade", Vector3.new(11, 5.5, 1.8), cf * CFrame.new(0, 2.75, 0), wood, Enum.Material.WoodPlanks)
 		model.PrimaryPart = base
 		for x = -4, 4, 2 do makePart(model, "Brace", Vector3.new(0.7, 6.8, 0.7), cf * CFrame.new(x, 2.8, 0) * CFrame.Angles(0,0,math.rad(x < 0 and -11 or 11)), dark, Enum.Material.Wood) end
@@ -233,4 +268,4 @@ task.spawn(function()
 	end
 end)
 
-print("[AdvancedStructures] Barricades, braziers, watchtowers, stone gates and ballista towers online.")
+print("[AdvancedStructures] Modular floors, roofs, fences, doorways, stairs, platforms and defensive structures online.")
