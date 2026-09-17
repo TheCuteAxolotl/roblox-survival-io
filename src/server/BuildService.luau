@@ -98,7 +98,10 @@ function BuildService.CanPlace(player, buildType, position, rotation)
 			return false, "That would overlap another building."
 		end
 		if CollectionService:HasTag(hit, RESOURCE_CORE_TAG) then
-			return false, "Move it away from the tree or rock."
+			local resourceModel = hit:FindFirstAncestorOfClass("Model")
+			if not resourceModel or resourceModel:GetAttribute("Alive") ~= false then
+				return false, "Move it away from the tree or rock."
+			end
 		end
 	end
 
