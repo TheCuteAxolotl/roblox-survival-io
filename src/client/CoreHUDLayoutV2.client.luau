@@ -21,7 +21,12 @@ local function styleStatus(label)
 end
 
 local function apply(object)
-	if isLegacyStatus(object) then styleStatus(object) end
+	if isLegacyStatus(object) then
+		styleStatus(object)
+	elseif object:IsA("TextButton") and object.Parent == hud and object.Text == "SHOP" then
+		-- V2 has one optional SUPPORT panel. The prototype monetization shop is redundant.
+		object.Visible = false
+	end
 end
 
 for _, child in hud:GetChildren() do apply(child) end
@@ -29,7 +34,7 @@ hud.ChildAdded:Connect(function(child)
 	task.defer(apply, child)
 end)
 
--- Some legacy code can rewrite position properties during initialization.
+-- Some legacy code can rewrite position/visibility properties during initialization.
 task.spawn(function()
 	for _ = 1, 50 do
 		for _, child in hud:GetChildren() do apply(child) end
