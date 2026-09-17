@@ -126,6 +126,7 @@ end
 
 local function render(state)
 	if type(state) ~= "table" then return end
+	card.Visible = state.Active == true and player:GetAttribute("InRiftExpedition") ~= true
 	if state.Active then
 		rank.Text = state.Rank or "?"
 		title.Text = string.upper(state.Title or "CONTRACT")
@@ -157,4 +158,10 @@ missionState.OnClientEvent:Connect(render)
 task.spawn(function()
 	local ok, state = pcall(function() return getMissionState:InvokeServer() end)
 	if ok then render(state) end
+end)
+
+
+player:GetAttributeChangedSignal("InRiftExpedition"):Connect(function()
+	local ok, state = pcall(function() return getMissionState:InvokeServer() end)
+	if ok and type(state) == "table" then render(state) end
 end)
