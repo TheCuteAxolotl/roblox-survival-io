@@ -36,6 +36,7 @@ local run = {
 	RallyEnds = 0,
 	Token = 0,
 	ExtractAvailable = false,
+	Modifier = "Standard",
 }
 
 local gatePosition = Vector3.new(0, 2, -180)
@@ -113,6 +114,8 @@ local function publicState(player, message)
 		Downed = player and player:GetAttribute("RiftDowned") == true or false,
 		SecondWinds = player and (player:GetAttribute("RiftSecondWinds") or 0) or 0,
 		PendingChoices = player and player:GetAttribute("RiftPendingChoices") or nil,
+		Modifier = run.Modifier,
+		ModifierLabel = (RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Label) or "STABLE RIFT",
 		Message = message,
 	}
 end
@@ -570,8 +573,9 @@ local function spawnEnemy(enemyId, position)
 	local data = RiftData.Enemies[enemyId]
 	if not data then return nil end
 	local party = math.max(1, participantCount())
-	local healthScale = 1 + (party - 1) * 0.62 + math.max(0, run.Stage - 1) * 0.07
-	local damageScale = 1 + (party - 1) * 0.10 + math.max(0, run.Stage - 1) * 0.04
+	local modifier = RiftData.Modifiers[run.Modifier] or RiftData.Modifiers.Standard
+	local healthScale = (1 + (party - 1) * 0.62 + math.max(0, run.Stage - 1) * 0.07) * (modifier.Health or 1)
+	local damageScale = (1 + (party - 1) * 0.10 + math.max(0, run.Stage - 1) * 0.04) * (modifier.Damage or 1)
 
 	local model = Instance.new("Model")
 	model.Name = enemyId
@@ -600,7 +604,7 @@ local function spawnEnemy(enemyId, position)
 	hum.BreakJointsOnDeath = false
 	hum.MaxHealth = math.floor(data.Health * healthScale)
 	hum.Health = hum.MaxHealth
-	hum.WalkSpeed = data.Speed
+	hum.WalkSpeed = data.Speed * ((RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Speed) or 1)
 	hum.JumpPower = 0
 	hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	hum.Parent = model
@@ -634,7 +638,7 @@ local function spawnEnemy(enemyId, position)
 			task.wait(0.18)
 			if data.Boss and not enraged and hum.Health / hum.MaxHealth <= 0.35 then
 				enraged = true
-				hum.WalkSpeed = data.Speed * 1.28
+				hum.WalkSpeed = data.Speed * ((RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Speed) or 1) * 1.28
 				lastAttack = 0
 			end
 			local target, distance = nearestParticipant(root.Position)
@@ -699,7 +703,8 @@ local function spawnStage(stageIndex)
 	pushAll(string.format("STAGE %d - %s", stageIndex, stage.Label))
 
 	local party = math.max(1, participantCount())
-	local countScale = 1 + (party - 1) * 0.48
+	local modifier = RiftData.Modifiers[run.Modifier] or RiftData.Modifiers.Standard
+	local countScale = (1 + (party - 1) * 0.48) * (modifier.Count or 1)
 	if stage.Kind == "Wave" then
 		local count = math.max(1, math.floor(stage.BaseCount * countScale + 0.5))
 		for _ = 1, count do spawnEnemy(stage.Enemy, randomArenaPoint()) task.wait(0.08) end
@@ -718,8 +723,9 @@ local function awardStage(stageIndex)
 	local stage = RiftData.Stages[stageIndex]
 	if not stage then return end
 	for player in run.Participants do
-		player:SetAttribute("RiftBankGold", (player:GetAttribute("RiftBankGold") or 0) + (stage.RewardGold or 0))
-		player:SetAttribute("RiftBankXP", (player:GetAttribute("RiftBankXP") or 0) + (stage.RewardXP or 0))
+		local rewardScale = ((RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Reward) or 1)
+		player:SetAttribute("RiftBankGold", (player:GetAttribute("RiftBankGold") or 0) + math.floor((stage.RewardGold or 0) * rewardScale + 0.5))
+		player:SetAttribute("RiftBankXP", (player:GetAttribute("RiftBankXP") or 0) + math.floor((stage.RewardXP or 0) * math.sqrt(rewardScale) + 0.5))
 		awardEssence(player, stage.Essence or 0)
 		local recovery = player:GetAttribute("RiftRecovery") or 0
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -817,10 +823,13 @@ local function joinRally(player)
 		run.Participants = {}
 		run.Stage = 0
 		run.StageLabel = "RALLYING"
+		local order = RiftData.ModifierOrder
+		run.Modifier = order[math.random(1, #order)]
 		run.RallyEnds = Workspace:GetServerTimeNow() + RiftData.RallySeconds
 		local token = run.Token
 		run.Participants[player] = true
-		push(player, "EXPEDITION RALLY STARTED - Friends can join at the gate.")
+		local modifier = RiftData.Modifiers[run.Modifier]
+		push(player, "EXPEDITION RALLY STARTED - " .. (modifier and modifier.Label or "STABLE RIFT"))
 		task.spawn(function()
 			while run.Status == "Rally" and run.Token == token and Workspace:GetServerTimeNow() < run.RallyEnds do
 				pushAll()
