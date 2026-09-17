@@ -46,6 +46,7 @@ local function stateFor(player)
 	return {
 		ClanTag = ClanService.GetTag(player),
 		ClanOwner = ClanService.IsOwner(player),
+		ClanMemberCount = ClanService.GetMemberCount(player),
 		DoorAccess = doorAccess[player.UserId] or "OWNER",
 	}
 end
@@ -82,6 +83,13 @@ local function refreshTag(player)
 	text.Font = Enum.Font.GothamBold
 	text.TextScaled = true
 	text.Parent = gui
+end
+
+local function refreshAll(actor, actorMessage)
+	for _, other in Players:GetPlayers() do
+		refreshTag(other)
+		sendState(other, other == actor and actorMessage or nil)
+	end
 end
 
 local function canOpenDoor(visitor, ownerUserId)
@@ -177,15 +185,18 @@ getExpansionState.OnServerInvoke = stateFor
 
 expansionAction.OnServerEvent:Connect(function(player, actionName, payload)
 	local ok, message = false, "Unknown action."
-	if actionName == "CreateClan" then ok, message = ClanService.Create(player, payload)
-	elseif actionName == "JoinClan" then ok, message = ClanService.Join(player, payload)
-	elseif actionName == "LeaveClan" then ok, message = ClanService.Leave(player)
+	local clanChanged = false
+	if actionName == "CreateClan" then ok, message = ClanService.Create(player, payload) clanChanged = ok
+	elseif actionName == "JoinClan" then ok, message = ClanService.Join(player, payload) clanChanged = ok
+	elseif actionName == "LeaveClan" then ok, message = ClanService.Leave(player) clanChanged = ok
+	elseif actionName == "TransferOwnership" then ok, message = ClanService.TransferOwnership(player, payload) clanChanged = ok
+	elseif actionName == "DisbandClan" then ok, message = ClanService.Disband(player) clanChanged = ok
 	elseif actionName == "SetDoorAccess" then
 		local mode = tostring(payload)
 		if table.find(ExpansionData.DoorAccessModes, mode) then doorAccess[player.UserId] = mode ok, message = true, `Door access: {mode}` end
 	elseif actionName == "PlaceDoor" then ok, message = createDoor(player) end
-	refreshTag(player)
-	sendState(player, message)
+
+	if clanChanged then refreshAll(player, message) else refreshTag(player) sendState(player, message) end
 end)
 
 local function setupPlayer(player)
