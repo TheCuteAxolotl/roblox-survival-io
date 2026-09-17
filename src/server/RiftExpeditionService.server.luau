@@ -26,6 +26,10 @@ local masteryAward = script.Parent:FindFirstChild("HunterMasteryAward") or Insta
 masteryAward.Name = "HunterMasteryAward"
 masteryAward.Parent = script.Parent
 
+local runResult = script.Parent:FindFirstChild("AscensionRunResult") or Instance.new("BindableEvent")
+runResult.Name = "AscensionRunResult"
+runResult.Parent = script.Parent
+
 local center = RiftData.ArenaCenter
 local run = {
 	Status = "Idle",
@@ -118,7 +122,9 @@ local function publicState(player, message)
 		SecondWinds = player and (player:GetAttribute("RiftSecondWinds") or 0) or 0,
 		PendingChoices = player and player:GetAttribute("RiftPendingChoices") or nil,
 		Modifier = run.Modifier,
-		ModifierLabel = (RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Label) or "STABLE RIFT",
+		ModifierLabel = (RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Label) or "STABLE ASCENSION",
+		AscensionTier = player and (player:GetAttribute("AscensionTier") or 1) or 1,
+		Renown = player and (player:GetAttribute("AscensionRenown") or 0) or 0,
 		Message = message,
 	}
 end
@@ -142,6 +148,7 @@ local function resetRunPowers(player)
 	player:SetAttribute("RiftGoldMultiplier", 1)
 	player:SetAttribute("RiftBloodRush", 0)
 	player:SetAttribute("RiftRecovery", 0)
+	player:SetAttribute("RiftDamageTakenMultiplier", 1)
 	player:SetAttribute("RiftOvercharge", false)
 	player:SetAttribute("RiftDodgeCooldownMultiplier", 1)
 	player:SetAttribute("RiftSecondWinds", 1)
@@ -220,6 +227,11 @@ local function applyUpgrade(player, id)
 		player:SetAttribute("RiftOvercharge", true)
 	elseif id == "Recovery" then
 		player:SetAttribute("RiftRecovery", 0.18 * stack)
+	elseif id == "BossWard" then
+		player:SetAttribute("RiftDamageReduction", math.min(0.55, (player:GetAttribute("RiftDamageReduction") or 0) + 0.08))
+	elseif id == "GlassCannon" then
+		player:SetAttribute("RiftDamageMultiplier", (player:GetAttribute("RiftDamageMultiplier") or 1) * 1.32)
+		player:SetAttribute("RiftDamageTakenMultiplier", 1 + 0.14 * stack)
 	end
 	return true
 end
@@ -252,7 +264,7 @@ local function maybeOfferChoice(player)
 	local choices = availableChoices(player)
 	if #choices == 0 then return end
 	player:SetAttribute("RiftPendingChoices", table.concat(choices, ","))
-	push(player, "LEVEL UP - Choose a Rift power.")
+	push(player, "LEVEL UP - Choose a Ascension power.")
 end
 
 local function awardEssence(player, amount)
@@ -349,7 +361,7 @@ local function buildGate()
 	end
 	makePart(gate, "GateTop", Vector3.new(18, 4, 4), CFrame.new(gatePosition + Vector3.new(0, 15, 0)), stone, Enum.Material.Slate)
 	local portal = makePart(gate, "RiftPortal", Vector3.new(11, 12, 1.3), CFrame.new(gatePosition + Vector3.new(0, 7, 0)), Color3.fromRGB(116, 69, 176), Enum.Material.Neon, 0.28, false)
-	addBillboard(portal, "RIFT EXPEDITIONS", Color3.fromRGB(235, 210, 255), Vector3.new(0, 9, 0), UDim2.fromOffset(260, 44))
+	addBillboard(portal, "ASCENSION GATE", Color3.fromRGB(235, 210, 255), Vector3.new(0, 9, 0), UDim2.fromOffset(260, 44))
 	local light = Instance.new("PointLight")
 	light.Color = Color3.fromRGB(172, 103, 255)
 	light.Range = 30
@@ -496,7 +508,7 @@ end
 local function payoutAndReturn(player, fraction, reason)
 	if not run.Participants[player] then return end
 	player:SetAttribute("RiftRunsSession", (player:GetAttribute("RiftRunsSession") or 0) + 1)
-	if reason == "RIFT CONQUERED" then
+	if reason == "ASCENSION CONQUERED" then
 		player:SetAttribute("RiftVictoriesSession", (player:GetAttribute("RiftVictoriesSession") or 0) + 1)
 	end
 	local gold = player:GetAttribute("RiftBankGold") or 0
@@ -507,6 +519,15 @@ local function payoutAndReturn(player, fraction, reason)
 	xp = math.floor(xp * fraction + 0.5)
 	if gold > 0 or xp > 0 then PlayerService.Add(player, { Gold = gold, XP = xp }) end
 	masteryAward:Fire(player, math.max(8, math.floor((run.Stage * 18 + xp * 0.08) * fraction)), 0)
+	runResult:Fire(player, {
+		Stage = run.Stage,
+		Cleared = reason == "ASCENSION CONQUERED",
+		Extracted = reason == "EXTRACTED",
+		Gold = gold,
+		XP = xp,
+		Modifier = run.Modifier,
+		PartySize = participantCount(),
+	})
 	run.Participants[player] = nil
 	clearDowned(player)
 	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
@@ -578,7 +599,8 @@ local function damageParticipant(player, raw)
 	if not hum or hum.Health <= 0 or player:GetAttribute("RiftDowned") == true then return end
 	local armor = math.clamp(player:GetAttribute("ArmorReduction") or 0, 0, 0.65)
 	local rift = math.clamp(player:GetAttribute("RiftDamageReduction") or 0, 0, 0.55)
-	local amount = math.max(1, math.floor(raw * (1 - armor) * (1 - rift) + 0.5))
+	local taken = math.max(0.5, player:GetAttribute("RiftDamageTakenMultiplier") or 1)
+	local amount = math.max(1, math.floor(raw * taken * (1 - armor) * (1 - rift) + 0.5))
 	if hum.Health - amount <= 0 then
 		downPlayer(player)
 	else
@@ -591,8 +613,14 @@ local function spawnEnemy(enemyId, position)
 	if not data then return nil end
 	local party = math.max(1, participantCount())
 	local modifier = RiftData.Modifiers[run.Modifier] or RiftData.Modifiers.Standard
-	local healthScale = (1 + (party - 1) * 0.62 + math.max(0, run.Stage - 1) * 0.07) * (modifier.Health or 1)
-	local damageScale = (1 + (party - 1) * 0.10 + math.max(0, run.Stage - 1) * 0.04) * (modifier.Damage or 1)
+	local tier = 1
+	for participant in run.Participants do
+		tier = math.max(tier, participant:GetAttribute("AscensionTier") or 1)
+	end
+	local tierHealth = 1 + math.max(0, tier - 1) * 0.16
+	local tierDamage = 1 + math.max(0, tier - 1) * 0.10
+	local healthScale = (1 + (party - 1) * 0.58 + math.max(0, run.Stage - 1) * 0.075) * (modifier.Health or 1) * tierHealth
+	local damageScale = (1 + (party - 1) * 0.09 + math.max(0, run.Stage - 1) * 0.045) * (modifier.Damage or 1) * tierDamage
 
 	local model = Instance.new("Model")
 	model.Name = enemyId
@@ -758,11 +786,17 @@ local function spawnStage(stageIndex)
 	local party = math.max(1, participantCount())
 	local modifier = RiftData.Modifiers[run.Modifier] or RiftData.Modifiers.Standard
 	local countScale = (1 + (party - 1) * 0.48) * (modifier.Count or 1)
+	local function stageEnemy()
+		if stage.EnemyPool and #stage.EnemyPool > 0 then
+			return stage.EnemyPool[math.random(1, #stage.EnemyPool)]
+		end
+		return stage.Enemy or "Riftling"
+	end
 	if stage.Kind == "Wave" then
 		local count = math.max(1, math.floor(stage.BaseCount * countScale + 0.5))
-		for _ = 1, count do spawnEnemy(stage.Enemy, randomArenaPoint()) task.wait(0.08) end
+		for _ = 1, count do spawnEnemy(stageEnemy(), randomArenaPoint()) task.wait(0.08) end
 	elseif stage.Kind == "Mixed" then
-		for _ = 1, math.max(1, math.floor(stage.BaseCount * countScale + 0.5)) do spawnEnemy(stage.Enemy, randomArenaPoint()) end
+		for _ = 1, math.max(1, math.floor(stage.BaseCount * countScale + 0.5)) do spawnEnemy(stageEnemy(), randomArenaPoint()) end
 		for _ = 1, math.max(1, math.floor((stage.Brutes or 0) * countScale + 0.5)) do spawnEnemy("RiftBrute", randomArenaPoint()) end
 	elseif stage.Kind == "Survival" then
 		run.StageSpawning = true
@@ -775,7 +809,7 @@ local function spawnStage(stageIndex)
 					nextSpawn = now + (stage.SpawnEvery or 3.5)
 					local waveCount = math.max(1, math.floor(2 * countScale + 0.5))
 					for i = 1, waveCount do
-						local enemy = (i % 4 == 0) and "RiftBrute" or stage.Enemy
+						local enemy = (i % 4 == 0) and "RiftBrute" or stageEnemy()
 						spawnEnemy(enemy, randomArenaPoint())
 					end
 				end
@@ -801,7 +835,12 @@ local function awardStage(stageIndex)
 	local stage = RiftData.Stages[stageIndex]
 	if not stage then return end
 	for player in run.Participants do
-		local rewardScale = ((RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Reward) or 1)
+		local party = math.max(1, participantCount())
+		local tier = math.max(1, player:GetAttribute("AscensionTier") or 1)
+		local modifierReward = ((RiftData.Modifiers[run.Modifier] and RiftData.Modifiers[run.Modifier].Reward) or 1)
+		local coopBonus = 1 + math.min(0.30, math.max(0, party - 1) * 0.08)
+		local tierReward = 1 + math.max(0, tier - 1) * 0.18
+		local rewardScale = modifierReward * coopBonus * tierReward
 		player:SetAttribute("RiftBankGold", (player:GetAttribute("RiftBankGold") or 0) + math.floor((stage.RewardGold or 0) * rewardScale + 0.5))
 		player:SetAttribute("RiftBankXP", (player:GetAttribute("RiftBankXP") or 0) + math.floor((stage.RewardXP or 0) * math.sqrt(rewardScale) + 0.5))
 		awardEssence(player, stage.Essence or 0)
@@ -838,10 +877,71 @@ local function endRunIfEmpty()
 	return false
 end
 
+local function startHazardDirector(token)
+	task.spawn(function()
+		while run.Status == "Active" and run.Token == token and participantCount() > 0 do
+			local delaySeconds = math.max(4.2, 8.2 - run.Stage * 0.28)
+			task.wait(delaySeconds)
+			if run.Status ~= "Active" or run.Token ~= token or participantCount() <= 0 then break end
+			local candidates = {}
+			for player in run.Participants do
+				if player.Parent and player:GetAttribute("RiftDowned") ~= true then
+					local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+					if root then table.insert(candidates, { Player = player, Position = root.Position }) end
+				end
+			end
+			if #candidates > 0 then
+				local chosen = candidates[math.random(1, #candidates)]
+				local position = Vector3.new(chosen.Position.X, center.Y + 1.2, chosen.Position.Z)
+				local radius = 10 + math.min(8, run.Stage * 0.7)
+				local warning = Instance.new("Part")
+				warning.Name = "AscensionHazardWarning"
+				warning.Shape = Enum.PartType.Cylinder
+				warning.Size = Vector3.new(0.35, radius * 2, radius * 2)
+				warning.CFrame = CFrame.new(position) * CFrame.Angles(0, 0, math.rad(90))
+				warning.Anchored = true
+				warning.CanCollide = false
+				warning.CanQuery = false
+				warning.Material = Enum.Material.Neon
+				warning.Color = Color3.fromRGB(255, 83, 113)
+				warning.Transparency = 0.45
+				warning.Parent = Workspace
+				TweenService:Create(warning, TweenInfo.new(1.15), { Transparency = 0.12 }):Play()
+				task.wait(1.15)
+				if warning.Parent then warning:Destroy() end
+				local blast = Instance.new("Part")
+				blast.Name = "AscensionHazardBlast"
+				blast.Shape = Enum.PartType.Ball
+				blast.Size = Vector3.new(radius * 2, 1.2, radius * 2)
+				blast.CFrame = CFrame.new(position)
+				blast.Anchored = true
+				blast.CanCollide = false
+				blast.CanQuery = false
+				blast.Material = Enum.Material.Neon
+				blast.Color = Color3.fromRGB(183, 64, 255)
+				blast.Transparency = 0.22
+				blast.Parent = Workspace
+				TweenService:Create(blast, TweenInfo.new(0.35), { Transparency = 1, Size = blast.Size * 1.16 }):Play()
+				game:GetService("Debris"):AddItem(blast, 0.4)
+				for player in run.Participants do
+					local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+					if root and player:GetAttribute("RiftDowned") ~= true then
+						local flat = Vector3.new(root.Position.X - position.X, 0, root.Position.Z - position.Z)
+						if flat.Magnitude <= radius then
+							damageParticipant(player, 16 + run.Stage * 4)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
 local function beginExpedition()
 	if run.Status ~= "Rally" then return end
 	run.Status = "Active"
 	if gatePrompt then gatePrompt.Enabled = false end
+	startHazardDirector(run.Token)
 	local index = 0
 	local count = math.max(1, participantCount())
 	for player in run.Participants do
@@ -854,7 +954,7 @@ local function beginExpedition()
 			local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 			if hum then hum.Health = hum.MaxHealth end
 			restoreMovement(player)
-			push(player, "RIFT OPEN - Clear stages, grow stronger, and choose when to extract.")
+			push(player, "ASCENSION OPEN - Adapt your build, clear stages, and decide when the risk is worth cashing out.")
 		end
 	end
 
@@ -865,7 +965,7 @@ local function beginExpedition()
 		if endRunIfEmpty() then return end
 		awardStage(stage)
 
-		if stage == RiftData.ExtractAfterStage then
+		if RiftData.ExtractStages and RiftData.ExtractStages[stage] then
 			run.ExtractAvailable = true
 			if extractPrompt then extractPrompt.Enabled = true end
 			pushAll("SAFE EXTRACTION OPEN - Leave now, or stay for deeper stages and bigger rewards.")
@@ -884,7 +984,7 @@ local function beginExpedition()
 
 	local winners = {}
 	for player in run.Participants do table.insert(winners, player) end
-	for _, player in winners do payoutAndReturn(player, 1, "RIFT CONQUERED") end
+	for _, player in winners do payoutAndReturn(player, 1, "ASCENSION CONQUERED") end
 	cleanupLive()
 	run.Status = "Idle"
 	run.Stage = 0
@@ -894,7 +994,7 @@ end
 
 local function joinRally(player)
 	if run.Status == "Active" then
-		push(player, "A Rift expedition is already in progress. Wait for the team to return.")
+		push(player, "An Ascension run is already in progress. Wait for the team to return.")
 		return
 	end
 	if run.Status == "Idle" then
@@ -909,7 +1009,7 @@ local function joinRally(player)
 		local token = run.Token
 		run.Participants[player] = true
 		local modifier = RiftData.Modifiers[run.Modifier]
-		push(player, "EXPEDITION RALLY STARTED - " .. (modifier and modifier.Label or "STABLE RIFT"))
+		push(player, "ASCENSION RALLY STARTED - " .. (modifier and modifier.Label or "STABLE ASCENSION"))
 		task.spawn(function()
 			while run.Status == "Rally" and run.Token == token and Workspace:GetServerTimeNow() < run.RallyEnds do
 				pushAll()
@@ -951,4 +1051,4 @@ for _, player in Players:GetPlayers() do
 	player:SetAttribute("RiftBestStageSession", player:GetAttribute("RiftBestStageSession") or 0)
 end
 
-print("[RiftExpedition] Rift runs online: rally, six stages, random powers, extraction, solo Second Wind and co-op revives.")
+print("[Ascension] Runs online: 10 escalating stages, random builds, hazards, cash-out points, solo recovery and co-op revives.")
