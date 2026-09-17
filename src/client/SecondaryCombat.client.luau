@@ -1,6 +1,6 @@
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local ItemData = require(ReplicatedStorage.Shared.ItemData)
 
@@ -17,26 +17,42 @@ local function selectedData()
 	return selectedItem and ItemData.Items[selectedItem] or nil
 end
 
-local function isRangedSelected()
-	local item = selectedData()
-	return item ~= nil and item.Ranged == true
-end
-
-local function suppressMeleeSwing()
-	local item = selectedData()
-	return item and (item.Ranged == true or item.Kind == "Shield" or item.CanAttack == false)
-end
-
 local function refreshTargetFilter()
-	mouse.TargetFilter = isRangedSelected() and workspace or nil
+	-- Ignore only our own character. Never filter Workspace itself, because that
+	-- prevents Mouse.Hit from resolving the world the player is aiming at.
+	mouse.TargetFilter = player.Character
 end
 
-local function fireAtMouse()
-	if not isRangedSelected() then return end
-	local hit = mouse.Hit
-	if not hit then return end
-	secondaryFire:FireServer(hit.Position)
+local function combatClick(_, inputState)
+	if inputState ~= Enum.UserInputState.Begin then
+		return Enum.ContextActionResult.Pass
+	end
+
+	local item = selectedData()
+	if not item then return Enum.ContextActionResult.Pass end
+
+	if item.Ranged == true then
+		local hit = mouse.Hit
+		if hit then secondaryFire:FireServer(hit.Position) end
+		-- Consume the click so GameController cannot also send a melee/gather action.
+		return Enum.ContextActionResult.Sink
+	end
+
+	if item.Kind == "Shield" or item.CanAttack == false then
+		-- Holding a shield/non-attacking secondary should not create a fake melee swing.
+		return Enum.ContextActionResult.Sink
+	end
+
+	return Enum.ContextActionResult.Pass
 end
+
+ContextActionService:BindActionAtPriority(
+	"SurvivalSecondaryCombatClick",
+	combatClick,
+	false,
+	3500,
+	Enum.UserInputType.MouseButton1
+)
 
 stateChanged.OnClientEvent:Connect(function(payload)
 	if type(payload) == "table" and type(payload.SelectedItem) == "string" then
@@ -45,17 +61,9 @@ stateChanged.OnClientEvent:Connect(function(payload)
 	end
 end)
 
-UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then return end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then fireAtMouse() end
-end)
-
-workspace.ChildAdded:Connect(function(child)
-	if child.Name == "LocalSwing" and suppressMeleeSwing() then
-		task.defer(function()
-			if child.Parent then child:Destroy() end
-		end)
-	end
+player.CharacterAdded:Connect(function(character)
+	task.wait(0.15)
+	mouse.TargetFilter = character
 end)
 
 task.spawn(function()
