@@ -38,6 +38,40 @@ local function defaultProfile()
 	return profile
 end
 
+local function isAllowedAgeChoice(age, itemName)
+	local options = ItemData.AgeChoices[age]
+	if type(options) ~= "table" then return false end
+	for _, option in options do
+		if option == itemName then return true end
+	end
+	return false
+end
+
+local function enforceUpgradeGroups(profile)
+	local activeByGroup = {}
+
+	for _, itemName in ItemData.StarterUnlocks do
+		local item = ItemData.Items[itemName]
+		if item and item.UpgradeGroup then
+			activeByGroup[item.UpgradeGroup] = itemName
+		end
+	end
+
+	for age = 2, #Config.AgeThresholds do
+		local chosen = profile.Choices[tostring(age)]
+		local item = chosen and ItemData.Items[chosen]
+		if item and item.UpgradeGroup and isAllowedAgeChoice(age, chosen) then
+			activeByGroup[item.UpgradeGroup] = chosen
+		end
+	end
+
+	for itemName, item in ItemData.Items do
+		if item.UpgradeGroup then
+			profile.Unlocks[itemName] = activeByGroup[item.UpgradeGroup] == itemName
+		end
+	end
+end
+
 local function normalizeProfile(raw)
 	local profile = defaultProfile()
 	if type(raw) ~= "table" then return profile end
@@ -59,7 +93,7 @@ local function normalizeProfile(raw)
 	if type(raw.Choices) == "table" then
 		for ageKey, itemName in raw.Choices do
 			local age = tonumber(ageKey)
-			if age and type(itemName) == "string" and ItemData.Items[itemName] then
+			if age and type(itemName) == "string" and ItemData.Items[itemName] and isAllowedAgeChoice(age, itemName) then
 				profile.Choices[tostring(age)] = itemName
 				profile.Unlocks[itemName] = true
 			end
@@ -78,6 +112,7 @@ local function normalizeProfile(raw)
 		profile.EquippedHat = raw.EquippedHat
 	end
 
+	enforceUpgradeGroups(profile)
 	return profile
 end
 
@@ -147,6 +182,23 @@ function PlayerService.HasUnlock(player, itemName)
 	return profile ~= nil and profile.Unlocks[itemName] == true
 end
 
+function PlayerService.GetPrimaryWeapon(player)
+	local profile = profiles[player]
+	if not profile then return "Axe" end
+	local bestName = nil
+	local bestTier = -math.huge
+	for itemName, item in ItemData.Items do
+		if item.Category == "Weapon" and item.UpgradeGroup == "PrimaryWeapon" and profile.Unlocks[itemName] == true then
+			local tier = item.Tier or 0
+			if tier > bestTier then
+				bestTier = tier
+				bestName = itemName
+			end
+		end
+	end
+	return bestName or "Axe"
+end
+
 function PlayerService.ChooseUpgrade(player, itemName)
 	if type(itemName) ~= "string" then return false, "Invalid upgrade." end
 	local profile = profiles[player]
@@ -163,9 +215,20 @@ function PlayerService.ChooseUpgrade(player, itemName)
 	end
 	if not allowed then return false, "That item is not one of your current choices." end
 
+	local chosenItem = ItemData.Items[itemName]
+	if not chosenItem then return false, "Unknown upgrade." end
+
+	if chosenItem.UpgradeGroup then
+		for otherName, otherItem in ItemData.Items do
+			if otherItem.UpgradeGroup == chosenItem.UpgradeGroup then
+				profile.Unlocks[otherName] = false
+			end
+		end
+	end
+
 	profile.Unlocks[itemName] = true
 	profile.Choices[tostring(pending.Age)] = itemName
-	return true, `Unlocked {ItemData.Items[itemName].Label}!`
+	return true, `Upgraded to {chosenItem.Label}!`
 end
 
 function PlayerService.Add(player, changes)
@@ -269,6 +332,7 @@ function PlayerService.Load(player)
 		if ok then profile = normalizeProfile(data) end
 	end
 	updateAge(profile)
+	enforceUpgradeGroups(profile)
 	profiles[player] = profile
 	makeLeaderstats(player, profile)
 end
