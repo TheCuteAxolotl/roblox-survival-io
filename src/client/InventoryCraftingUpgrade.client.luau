@@ -4,7 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CraftingData = require(ReplicatedStorage.Shared.CraftingData)
 local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 
-local SLOT_COUNT = 10
+local SLOT_COUNT = 34
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local hud = playerGui:WaitForChild("SurvivalSystemsHUD")
@@ -41,7 +41,7 @@ local function findHeader(panel, startsWith)
 end
 
 local bagHeader = findHeader(bagPanel, "SURVIVAL BAG")
-if bagHeader then bagHeader.Text = "SURVIVAL BAG — 10 SLOTS" end
+if bagHeader then bagHeader.Text = "SURVIVAL BAG — 34 SLOTS" end
 
 -- Hide the legacy six-slot bag list. The original controller can keep updating it,
 -- but this replacement is what the player actually sees.
@@ -342,11 +342,15 @@ for _, child in chestPanel:GetChildren() do
 	if child:IsA("Frame") and child.BackgroundTransparency == 1 then child.Visible = false end
 end
 
-local chestContent = Instance.new("Frame")
-chestContent.Name = "TenSlotChestContent"
+local chestContent = Instance.new("ScrollingFrame")
+chestContent.Name = "ThirtyFourSlotChestContent"
 chestContent.Position = UDim2.fromOffset(12, 54)
 chestContent.Size = UDim2.new(1, -24, 1, -66)
 chestContent.BackgroundTransparency = 1
+chestContent.BorderSizePixel = 0
+chestContent.ScrollBarThickness = 5
+chestContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+chestContent.CanvasSize = UDim2.new()
 chestContent.ZIndex = 90
 chestContent.Parent = chestPanel
 
@@ -389,7 +393,7 @@ local function rebuildChest()
 	bagLabel.Position = UDim2.fromOffset(0, 172)
 	bagLabel.Size = UDim2.new(1, 0, 0, 22)
 	bagLabel.BackgroundTransparency = 1
-	bagLabel.Text = "YOUR 10-SLOT BAG — TAP TO STORE"
+	bagLabel.Text = "YOUR 34-SLOT BAG — TAP TO STORE"
 	bagLabel.TextColor3 = Color3.fromRGB(230, 230, 234)
 	bagLabel.Font = Enum.Font.GothamBold
 	bagLabel.TextSize = 10
@@ -439,7 +443,7 @@ task.spawn(function()
 	corner(quickEat, 9)
 	stroke(quickEat, 0.82)
 
-	local foodPriority = { "CookedBeef", "TrailRation", "BoneBroth", "CookedMeat" }
+	local foodPriority = { "Food", "CookedBeef", "TrailRation", "BoneBroth", "CookedMeat" }
 	local function bestFoodSlot()
 		for _, wanted in foodPriority do
 			for index = 1, SLOT_COUNT do
