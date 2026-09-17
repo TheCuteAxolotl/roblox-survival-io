@@ -152,6 +152,8 @@ local function resetRunPowers(player)
 end
 
 local function setBaseRunState(player)
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	player:SetAttribute("RiftBaseMaxHealth", hum and hum.MaxHealth or 100)
 	resetRunPowers(player)
 	player:SetAttribute("InRiftExpedition", true)
 	player:SetAttribute("RiftBankGold", 0)
@@ -505,8 +507,18 @@ local function payoutAndReturn(player, fraction, reason)
 	masteryAward:Fire(player, math.max(8, math.floor((run.Stage * 18 + xp * 0.08) * fraction)), 0)
 	run.Participants[player] = nil
 	clearDowned(player)
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	local baseMax = math.max(1, player:GetAttribute("RiftBaseMaxHealth") or 100)
+	resetRunPowers(player)
+	player:SetAttribute("RiftSecondWinds", 0)
 	player:SetAttribute("InRiftExpedition", false)
 	player:SetAttribute("RiftPendingChoices", nil)
+	player:SetAttribute("RiftBaseMaxHealth", nil)
+	if hum then
+		hum.MaxHealth = baseMax
+		hum.Health = math.min(hum.Health, hum.MaxHealth)
+	end
+	restoreMovement(player)
 	task.delay(0.1, function()
 		if player.Parent then
 			teleportPlayer(player, gatePosition + Vector3.new(0, 2, 18))
