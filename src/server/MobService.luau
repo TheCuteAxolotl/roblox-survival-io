@@ -9,6 +9,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local MobData = require(ReplicatedStorage.Shared.MobData)
 local InventoryService = require(script.Parent.InventoryService)
 local PlayerService = require(script.Parent.PlayerService)
+local WorldService = require(script.Parent.WorldService)
 
 local MobService = {}
 local active = {}
@@ -283,7 +284,16 @@ local function dropLoot(model, mobName)
 	for _, drop in data.Drops or {} do
 		if math.random() <= (drop.Chance or 1) then
 			local amount = math.random(drop.Min or 1, drop.Max or drop.Min or 1)
-			if attacker then
+
+			-- Animal meat is intentionally folded into the main Food resource.
+			-- Hides, bones, fur, venom, etc. still use the 34-slot inventory.
+			if drop.Item == "Food" then
+				if attacker then
+					PlayerService.Add(attacker, { Food = amount })
+				else
+					WorldService.CreateLootBag(origin, { Food = amount })
+				end
+			elseif attacker then
 				local added = InventoryService.AddItem(attacker, drop.Item, amount)
 				-- A completely full 34-slot bag should not delete rare loot.
 				if not added then
