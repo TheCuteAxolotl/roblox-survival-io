@@ -277,13 +277,24 @@ local function dropLoot(model, mobName)
 	local data = MobData.Mobs[mobName]
 	if not data or not model.PrimaryPart then return end
 	local origin = model.PrimaryPart.Position
-	for _, drop in data.Drops or {} do
-		if math.random() <= (drop.Chance or 1) then
-			InventoryService.CreateWorldDrop(origin + Vector3.new(math.random(-2, 2), 1, math.random(-2, 2)), drop.Item, math.random(drop.Min or 1, drop.Max or drop.Min or 1))
-		end
-	end
 	local attackerId = model:GetAttribute("LastAttackerUserId")
 	local attacker = attackerId and Players:GetPlayerByUserId(attackerId)
+
+	for _, drop in data.Drops or {} do
+		if math.random() <= (drop.Chance or 1) then
+			local amount = math.random(drop.Min or 1, drop.Max or drop.Min or 1)
+			if attacker then
+				local added = InventoryService.AddItem(attacker, drop.Item, amount)
+				-- A completely full 34-slot bag should not delete rare loot.
+				if not added then
+					InventoryService.CreateWorldDrop(origin, drop.Item, amount)
+				end
+			else
+				InventoryService.CreateWorldDrop(origin, drop.Item, amount)
+			end
+		end
+	end
+
 	if attacker then
 		PlayerService.Add(attacker, {
 			XP = data.XPReward or math.max(4, math.floor((data.Health or 50) / 10)),
