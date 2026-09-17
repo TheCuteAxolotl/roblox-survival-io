@@ -4,8 +4,9 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local ItemData = require(ReplicatedStorage.Shared.ItemData)
 local HatData = require(ReplicatedStorage.Shared.HatData)
+local ItemData = require(ReplicatedStorage.Shared.ItemData)
+local KitData = require(ReplicatedStorage.Shared.KitData)
 
 local PlayerService = {}
 local profiles = {}
@@ -31,15 +32,15 @@ local function defaultProfile()
 	profile.Choices = {}
 	profile.HatInventory = {}
 	profile.EquippedHat = nil
+	profile.OwnedKits = {}
+	profile.EquippedKit = nil
 	return profile
 end
 
 local function isListedAtAge(age, itemName)
 	local options = ItemData.AgeChoices[age]
 	if type(options) ~= "table" then return false end
-	for _, option in options do
-		if option == itemName then return true end
-	end
+	for _, option in options do if option == itemName then return true end end
 	return false
 end
 
@@ -47,86 +48,56 @@ local function requirementMetFromActive(item, activeByGroup, unlocks)
 	if not item or not item.RequiresUnlock then return true end
 	local requiredName = item.RequiresUnlock
 	local requiredItem = ItemData.Items[requiredName]
-	if requiredItem and requiredItem.UpgradeGroup then
-		return activeByGroup[requiredItem.UpgradeGroup] == requiredName
-	end
+	if requiredItem and requiredItem.UpgradeGroup then return activeByGroup[requiredItem.UpgradeGroup] == requiredName end
 	return unlocks[requiredName] == true
 end
 
 local function enforceUpgradeGroups(profile)
 	local activeByGroup = {}
 	local nonGroupUnlocks = {}
-
 	for itemName, unlocked in profile.Unlocks do
 		local item = ItemData.Items[itemName]
-		if unlocked == true and item and not item.UpgradeGroup then
-			nonGroupUnlocks[itemName] = true
-		end
+		if unlocked == true and item and not item.UpgradeGroup then nonGroupUnlocks[itemName] = true end
 	end
-
 	for _, itemName in ItemData.StarterUnlocks do
 		local item = ItemData.Items[itemName]
-		if item and item.UpgradeGroup then
-			activeByGroup[item.UpgradeGroup] = itemName
-		else
-			nonGroupUnlocks[itemName] = true
-		end
+		if item and item.UpgradeGroup then activeByGroup[item.UpgradeGroup] = itemName else nonGroupUnlocks[itemName] = true end
 	end
-
 	for age = 2, #Config.AgeThresholds do
 		local chosen = profile.Choices[tostring(age)]
 		local item = chosen and ItemData.Items[chosen]
 		if item and isListedAtAge(age, chosen) and requirementMetFromActive(item, activeByGroup, nonGroupUnlocks) then
-			if item.UpgradeGroup then
-				activeByGroup[item.UpgradeGroup] = chosen
-			else
-				nonGroupUnlocks[chosen] = true
-			end
+			if item.UpgradeGroup then activeByGroup[item.UpgradeGroup] = chosen else nonGroupUnlocks[chosen] = true end
 		end
 	end
-
 	for itemName, item in ItemData.Items do
-		if item.UpgradeGroup then
-			profile.Unlocks[itemName] = activeByGroup[item.UpgradeGroup] == itemName
-		else
-			profile.Unlocks[itemName] = nonGroupUnlocks[itemName] == true
-		end
+		if item.UpgradeGroup then profile.Unlocks[itemName] = activeByGroup[item.UpgradeGroup] == itemName else profile.Unlocks[itemName] = nonGroupUnlocks[itemName] == true end
 	end
 end
 
 local function normalizeProfile(raw)
 	local profile = defaultProfile()
 	if type(raw) ~= "table" then return profile end
-
 	for _, key in { "Wood", "Stone", "Food", "Gold", "XP", "Age" } do
 		if type(raw[key]) == "number" then profile[key] = math.max(0, raw[key]) end
 	end
-
 	if type(raw.Unlocks) == "table" then
-		for itemName, unlocked in raw.Unlocks do
-			if unlocked == true and ItemData.Items[itemName] then profile.Unlocks[itemName] = true end
-		end
+		for itemName, unlocked in raw.Unlocks do if unlocked == true and ItemData.Items[itemName] then profile.Unlocks[itemName] = true end end
 	end
-
 	if type(raw.Choices) == "table" then
 		for ageKey, itemName in raw.Choices do
 			local age = tonumber(ageKey)
-			if age and type(itemName) == "string" and ItemData.Items[itemName] and isListedAtAge(age, itemName) then
-				profile.Choices[tostring(age)] = itemName
-			end
+			if age and type(itemName) == "string" and ItemData.Items[itemName] and isListedAtAge(age, itemName) then profile.Choices[tostring(age)] = itemName end
 		end
 	end
-
 	if type(raw.HatInventory) == "table" then
-		for hatName, owned in raw.HatInventory do
-			if owned == true and HatData.Hats[hatName] then profile.HatInventory[hatName] = true end
-		end
+		for hatName, owned in raw.HatInventory do if owned == true and HatData.Hats[hatName] then profile.HatInventory[hatName] = true end end
 	end
-
-	if type(raw.EquippedHat) == "string" and profile.HatInventory[raw.EquippedHat] and HatData.Hats[raw.EquippedHat] then
-		profile.EquippedHat = raw.EquippedHat
+	if type(raw.EquippedHat) == "string" and profile.HatInventory[raw.EquippedHat] and HatData.Hats[raw.EquippedHat] then profile.EquippedHat = raw.EquippedHat end
+	if type(raw.OwnedKits) == "table" then
+		for kitName, owned in raw.OwnedKits do if owned == true and KitData.Kits[kitName] then profile.OwnedKits[kitName] = true end end
 	end
-
+	if type(raw.EquippedKit) == "string" and profile.OwnedKits[raw.EquippedKit] and KitData.Kits[raw.EquippedKit] then profile.EquippedKit = raw.EquippedKit end
 	enforceUpgradeGroups(profile)
 	return profile
 end
@@ -136,32 +107,21 @@ local function tryEnableStore()
 		warn("[PlayerService] Unpublished Studio place: using temporary session data.")
 		return
 	end
-	local ok, result = pcall(function()
-		return DataStoreService:GetDataStore("SurvivalIO_Player_v2")
-	end)
-	if ok then
-		store = result
-		persistentEnabled = true
-	else
-		warn("[PlayerService] DataStore unavailable; using temporary data:", result)
-	end
+	local ok, result = pcall(function() return DataStoreService:GetDataStore("SurvivalIO_Player_v2") end)
+	if ok then store = result persistentEnabled = true else warn("[PlayerService] DataStore unavailable; using temporary data:", result) end
 end
 
 local function updateAge(profile)
 	for age = #Config.AgeThresholds, 1, -1 do
-		if profile.XP >= Config.AgeThresholds[age] then
-			profile.Age = age
-			return
-		end
+		if profile.XP >= Config.AgeThresholds[age] then profile.Age = age return end
 	end
 	profile.Age = 1
 end
 
 local function syncLeaderstats(player)
 	local profile = profiles[player]
-	if not profile then return end
 	local stats = player:FindFirstChild("leaderstats")
-	if not stats then return end
+	if not profile or not stats then return end
 	for _, name in { "Wood", "Stone", "Food", "Gold", "XP", "Age" } do
 		local value = stats:FindFirstChild(name)
 		if value then value.Value = math.floor(profile[name] or 0) end
@@ -172,21 +132,14 @@ local function eligibleOptions(profile, age)
 	local result = {}
 	local options = ItemData.AgeChoices[age]
 	if type(options) ~= "table" then return result end
-
 	for _, itemName in options do
 		local item = ItemData.Items[itemName]
-		if item then
-			local eligible = true
-			if item.RequiresUnlock then eligible = profile.Unlocks[item.RequiresUnlock] == true end
-			if eligible then table.insert(result, itemName) end
-		end
+		if item and (not item.RequiresUnlock or profile.Unlocks[item.RequiresUnlock] == true) then table.insert(result, itemName) end
 	end
 	return result
 end
 
-function PlayerService.Get(player)
-	return profiles[player]
-end
+function PlayerService.Get(player) return profiles[player] end
 
 function PlayerService.GetPendingChoice(player)
 	local profile = profiles[player]
@@ -201,8 +154,7 @@ function PlayerService.GetPendingChoice(player)
 end
 
 function PlayerService.GetPublic(player)
-	local profile = profiles[player]
-	if not profile then profile = defaultProfile() end
+	local profile = profiles[player] or defaultProfile()
 	local public = deepCopy(profile)
 	public.PendingChoice = PlayerService.GetPendingChoice(player)
 	return public
@@ -216,27 +168,17 @@ end
 local function getActiveInGroup(player, groupName, fallback)
 	local profile = profiles[player]
 	if not profile then return fallback end
-	local bestName = nil
-	local bestTier = -math.huge
+	local bestName, bestTier = nil, -math.huge
 	for itemName, item in ItemData.Items do
-		if item.UpgradeGroup == groupName and profile.Unlocks[itemName] == true then
-			local tier = item.Tier or 0
-			if tier > bestTier then
-				bestTier = tier
-				bestName = itemName
-			end
+		if item.UpgradeGroup == groupName and profile.Unlocks[itemName] == true and (item.Tier or 0) > bestTier then
+			bestName, bestTier = itemName, item.Tier or 0
 		end
 	end
 	return bestName or fallback
 end
 
-function PlayerService.GetPrimaryWeapon(player)
-	return getActiveInGroup(player, "PrimaryWeapon", "Axe")
-end
-
-function PlayerService.GetSecondaryWeapon(player)
-	return getActiveInGroup(player, "SecondaryWeapon", nil)
-end
+function PlayerService.GetPrimaryWeapon(player) return getActiveInGroup(player, "PrimaryWeapon", "Axe") end
+function PlayerService.GetSecondaryWeapon(player) return getActiveInGroup(player, "SecondaryWeapon", nil) end
 
 function PlayerService.ChooseUpgrade(player, itemName)
 	if type(itemName) ~= "string" then return false, "Invalid upgrade." end
@@ -244,25 +186,13 @@ function PlayerService.ChooseUpgrade(player, itemName)
 	if not profile then return false, "Profile not ready." end
 	local pending = PlayerService.GetPendingChoice(player)
 	if not pending then return false, "No upgrade choice is waiting." end
-
-	local allowed = false
-	for _, option in pending.Options do
-		if option == itemName then allowed = true break end
-	end
-	if not allowed then return false, "That item is not one of your current choices." end
-
+	if not table.find(pending.Options, itemName) then return false, "That item is not one of your current choices." end
 	local chosenItem = ItemData.Items[itemName]
 	if not chosenItem then return false, "Unknown upgrade." end
-	if chosenItem.RequiresUnlock and profile.Unlocks[chosenItem.RequiresUnlock] ~= true then
-		return false, "That upgrade does not match your current weapon branch."
-	end
-
+	if chosenItem.RequiresUnlock and profile.Unlocks[chosenItem.RequiresUnlock] ~= true then return false, "That upgrade does not match your current weapon branch." end
 	if chosenItem.UpgradeGroup then
-		for otherName, otherItem in ItemData.Items do
-			if otherItem.UpgradeGroup == chosenItem.UpgradeGroup then profile.Unlocks[otherName] = false end
-		end
+		for otherName, otherItem in ItemData.Items do if otherItem.UpgradeGroup == chosenItem.UpgradeGroup then profile.Unlocks[otherName] = false end end
 	end
-
 	profile.Unlocks[itemName] = true
 	profile.Choices[tostring(pending.Age)] = itemName
 	return true, `Unlocked {chosenItem.Label}!`
@@ -272,9 +202,7 @@ function PlayerService.Add(player, changes)
 	local profile = profiles[player]
 	if not profile then return false end
 	for key, amount in changes do
-		if type(amount) == "number" and type(profile[key]) == "number" then
-			profile[key] = math.max(0, (profile[key] or 0) + amount)
-		end
+		if type(amount) == "number" and type(profile[key]) == "number" then profile[key] = math.max(0, (profile[key] or 0) + amount) end
 	end
 	updateAge(profile)
 	syncLeaderstats(player)
@@ -284,9 +212,7 @@ end
 function PlayerService.CanAfford(player, cost)
 	local profile = profiles[player]
 	if not profile then return false end
-	for resource, amount in cost do
-		if (profile[resource] or 0) < amount then return false end
-	end
+	for resource, amount in cost do if (profile[resource] or 0) < amount then return false end end
 	return true
 end
 
@@ -298,8 +224,7 @@ function PlayerService.Spend(player, cost)
 end
 
 function PlayerService.BuyHat(player, hatName)
-	local profile = profiles[player]
-	local hat = HatData.Hats[hatName]
+	local profile, hat = profiles[player], HatData.Hats[hatName]
 	if not profile or not hat then return false, "Unknown hat." end
 	if profile.HatInventory[hatName] then return PlayerService.EquipHat(player, hatName) end
 	if (profile.Gold or 0) < hat.Cost then return false, `You need {hat.Cost} gold.` end
@@ -311,8 +236,7 @@ function PlayerService.BuyHat(player, hatName)
 end
 
 function PlayerService.EquipHat(player, hatName)
-	local profile = profiles[player]
-	local hat = HatData.Hats[hatName]
+	local profile, hat = profiles[player], HatData.Hats[hatName]
 	if not profile or not hat then return false, "Unknown hat." end
 	if not profile.HatInventory[hatName] then return false, "You do not own that hat." end
 	profile.EquippedHat = hatName
@@ -323,10 +247,33 @@ function PlayerService.GetHatEffect(player, effectName, defaultValue)
 	local profile = profiles[player]
 	if not profile or not profile.EquippedHat then return defaultValue end
 	local hat = HatData.Hats[profile.EquippedHat]
-	if not hat or not hat.Effects then return defaultValue end
-	local value = hat.Effects[effectName]
-	if value == nil then return defaultValue end
-	return value
+	local value = hat and hat.Effects and hat.Effects[effectName]
+	return value == nil and defaultValue or value
+end
+
+function PlayerService.OwnsKit(player, kitName)
+	local profile = profiles[player]
+	return profile ~= nil and profile.OwnedKits[kitName] == true
+end
+
+function PlayerService.BuyKit(player, kitName)
+	local profile, kit = profiles[player], KitData.Kits[kitName]
+	if not profile or not kit then return false, "Unknown kit." end
+	if profile.OwnedKits[kitName] then return PlayerService.EquipKit(player, kitName) end
+	if (profile.Gold or 0) < kit.Cost then return false, `You need {kit.Cost} gold.` end
+	profile.Gold -= kit.Cost
+	profile.OwnedKits[kitName] = true
+	profile.EquippedKit = kitName
+	syncLeaderstats(player)
+	return true, `Unlocked {kit.Label} permanently and equipped it.`
+end
+
+function PlayerService.EquipKit(player, kitName)
+	local profile, kit = profiles[player], KitData.Kits[kitName]
+	if not profile or not kit then return false, "Unknown kit." end
+	if not profile.OwnedKits[kitName] then return false, "You do not own that kit." end
+	profile.EquippedKit = kitName
+	return true, `Equipped {kit.Label} for your next run.`
 end
 
 function PlayerService.TakeDeathDrop(player, ratio)
@@ -362,7 +309,7 @@ function PlayerService.Load(player)
 	local profile = defaultProfile()
 	if persistentEnabled and store then
 		local ok, data = pcall(function() return store:GetAsync(`p_{player.UserId}`) end)
-		if ok then profile = normalizeProfile(data) end
+		if ok and data then profile = normalizeProfile(data) elseif not ok then warn(`[PlayerService] Load failed for {player.Name}: {data}`) end
 	end
 	updateAge(profile)
 	enforceUpgradeGroups(profile)
@@ -375,20 +322,22 @@ function PlayerService.Save(player)
 	local profile = profiles[player]
 	if not profile then return end
 	local payload = deepCopy(profile)
-	pcall(function() store:SetAsync(`p_{player.UserId}`, payload) end)
+	local ok, err = pcall(function() store:SetAsync(`p_{player.UserId}`, payload) end)
+	if not ok then warn(`[PlayerService] Save failed for {player.Name}: {err}`) end
 end
 
 function PlayerService.Init()
 	tryEnableStore()
 	Players.PlayerAdded:Connect(PlayerService.Load)
-	Players.PlayerRemoving:Connect(function(player)
-		PlayerService.Save(player)
-		profiles[player] = nil
-	end)
+	Players.PlayerRemoving:Connect(function(player) PlayerService.Save(player) profiles[player] = nil end)
 	for _, player in Players:GetPlayers() do task.spawn(PlayerService.Load, player) end
-	game:BindToClose(function()
-		for _, player in Players:GetPlayers() do PlayerService.Save(player) end
+	task.spawn(function()
+		while true do
+			task.wait(60)
+			for _, player in Players:GetPlayers() do PlayerService.Save(player) end
+		end
 	end)
+	game:BindToClose(function() for _, player in Players:GetPlayers() do PlayerService.Save(player) end end)
 end
 
 return PlayerService
