@@ -1,4 +1,5 @@
 local ContextActionService = game:GetService("ContextActionService")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -23,6 +24,16 @@ local function refreshTargetFilter()
 	mouse.TargetFilter = player.Character
 end
 
+local function pointerOverInteractiveGui()
+	local objects = GuiService:GetGuiObjectsAtPosition(mouse.X, mouse.Y)
+	for _, object in objects do
+		if (object:IsA("TextButton") or object:IsA("ImageButton")) and object.Visible and object.Active then
+			return true
+		end
+	end
+	return false
+end
+
 local function combatClick(_, inputState)
 	if inputState ~= Enum.UserInputState.Begin then
 		return Enum.ContextActionResult.Pass
@@ -32,8 +43,11 @@ local function combatClick(_, inputState)
 	if not item then return Enum.ContextActionResult.Pass end
 
 	if item.Ranged == true then
-		local hit = mouse.Hit
-		if hit then secondaryFire:FireServer(hit.Position) end
+		-- Consume UI clicks too, but never turn them into a shot.
+		if not pointerOverInteractiveGui() then
+			local hit = mouse.Hit
+			if hit then secondaryFire:FireServer(hit.Position) end
+		end
 		-- Consume the click so GameController cannot also send a melee/gather action.
 		return Enum.ContextActionResult.Sink
 	end
