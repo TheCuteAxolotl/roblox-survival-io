@@ -20,11 +20,12 @@ ItemData.Items = {
 	Wall = {
 		Category = "Build",
 		Label = "Wood Wall",
-		Description = "Cheap wooden defense with 120 HP.",
+		Description = "Tall wooden defense that players cannot jump over.",
 		Cost = { Wood = 20 },
-		Health = 120,
-		PreviewSize = Vector3.new(10, 6, 1.2),
-		PreviewY = 3,
+		Health = 150,
+		BuildLimit = 30,
+		PreviewSize = Vector3.new(10, 12, 1.2),
+		PreviewY = 6,
 		Rotatable = true,
 	},
 	Spike = {
@@ -33,6 +34,7 @@ ItemData.Items = {
 		Description = "Defensive spikes with 75 HP.",
 		Cost = { Wood = 15, Stone = 5 },
 		Health = 75,
+		BuildLimit = 16,
 		PreviewSize = Vector3.new(5.5, 2.2, 5.5),
 		PreviewY = 1.1,
 	},
@@ -62,11 +64,12 @@ ItemData.Items = {
 	StoneWall = {
 		Category = "Build",
 		Label = "Stone Wall",
-		Description = "Expensive fortified wall with 320 HP.",
+		Description = "Tall fortified wall with 360 HP.",
 		Cost = { Wood = 8, Stone = 32 },
-		Health = 320,
-		PreviewSize = Vector3.new(10, 6, 1.6),
-		PreviewY = 3,
+		Health = 360,
+		BuildLimit = 20,
+		PreviewSize = Vector3.new(10, 12, 1.6),
+		PreviewY = 6,
 		Rotatable = true,
 	},
 	BearTrap = {
@@ -77,7 +80,7 @@ ItemData.Items = {
 		Health = 90,
 		PreviewSize = Vector3.new(6, 1, 6),
 		PreviewY = 0.5,
-		BuildLimit = 4,
+		BuildLimit = 6,
 	},
 	Spear = {
 		Category = "Weapon",
@@ -109,7 +112,7 @@ ItemData.Items = {
 		Health = 180,
 		PreviewSize = Vector3.new(7, 10, 7),
 		PreviewY = 5,
-		BuildLimit = 2,
+		BuildLimit = 3,
 	},
 	Campfire = {
 		Category = "Build",
@@ -119,7 +122,7 @@ ItemData.Items = {
 		Health = 130,
 		PreviewSize = Vector3.new(6, 2, 6),
 		PreviewY = 1,
-		BuildLimit = 1,
+		BuildLimit = 2,
 	},
 	Katana = {
 		Category = "Weapon",
