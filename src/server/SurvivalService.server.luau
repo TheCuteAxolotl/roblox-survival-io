@@ -16,8 +16,8 @@ local PlayerService = require(script.Parent.PlayerService)
 InventoryService.Init()
 
 local NEED_TICK_SECONDS = 6
-local HUNGER_DRAIN_PER_TICK = 0.30
-local THIRST_DRAIN_PER_TICK = 0.38
+local HUNGER_DRAIN_PER_TICK = 0 -- V3: food is healing/crafting, not a chore meter
+local THIRST_DRAIN_PER_TICK = 0 -- V3: exploration is no longer interrupted by thirst upkeep
 local WATER_REGEN_PER_SECOND = 1.8
 
 local structureCatalog = {
