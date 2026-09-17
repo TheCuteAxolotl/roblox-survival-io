@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local ItemData = require(ReplicatedStorage.Shared.ItemData)
+local HatData = require(ReplicatedStorage.Shared.HatData)
 
 local PlayerService = {}
 local profiles = {}
@@ -32,6 +33,8 @@ local function defaultProfile()
 	local profile = deepCopy(Config.StartingResources)
 	profile.Unlocks = starterUnlocks()
 	profile.Choices = {}
+	profile.HatInventory = {}
+	profile.EquippedHat = nil
 	return profile
 end
 
@@ -61,6 +64,18 @@ local function normalizeProfile(raw)
 				profile.Unlocks[itemName] = true
 			end
 		end
+	end
+
+	if type(raw.HatInventory) == "table" then
+		for hatName, owned in raw.HatInventory do
+			if owned == true and HatData.Hats[hatName] then
+				profile.HatInventory[hatName] = true
+			end
+		end
+	end
+
+	if type(raw.EquippedHat) == "string" and profile.HatInventory[raw.EquippedHat] and HatData.Hats[raw.EquippedHat] then
+		profile.EquippedHat = raw.EquippedHat
 	end
 
 	return profile
@@ -113,10 +128,7 @@ function PlayerService.GetPendingChoice(player)
 	for age = 2, profile.Age do
 		local options = ItemData.AgeChoices[age]
 		if options and not profile.Choices[tostring(age)] then
-			return {
-				Age = age,
-				Options = deepCopy(options),
-			}
+			return { Age = age, Options = deepCopy(options) }
 		end
 	end
 	return nil
@@ -185,21 +197,52 @@ function PlayerService.Spend(player, cost)
 	return PlayerService.Add(player, changes)
 end
 
+function PlayerService.BuyHat(player, hatName)
+	local profile = profiles[player]
+	local hat = HatData.Hats[hatName]
+	if not profile or not hat then return false, "Unknown hat." end
+	if profile.HatInventory[hatName] then
+		return PlayerService.EquipHat(player, hatName)
+	end
+	if (profile.Gold or 0) < hat.Cost then
+		return false, `You need {hat.Cost} gold.`
+	end
+	profile.Gold -= hat.Cost
+	profile.HatInventory[hatName] = true
+	profile.EquippedHat = hatName
+	syncLeaderstats(player)
+	return true, `Bought and equipped {hat.Label}!`
+end
+
+function PlayerService.EquipHat(player, hatName)
+	local profile = profiles[player]
+	local hat = HatData.Hats[hatName]
+	if not profile or not hat then return false, "Unknown hat." end
+	if not profile.HatInventory[hatName] then return false, "You do not own that hat." end
+	profile.EquippedHat = hatName
+	return true, `Equipped {hat.Label}.`
+end
+
+function PlayerService.GetHatEffect(player, effectName, defaultValue)
+	local profile = profiles[player]
+	if not profile or not profile.EquippedHat then return defaultValue end
+	local hat = HatData.Hats[profile.EquippedHat]
+	if not hat or not hat.Effects then return defaultValue end
+	local value = hat.Effects[effectName]
+	if value == nil then return defaultValue end
+	return value
+end
+
 function PlayerService.TakeDeathDrop(player, ratio)
 	local profile = profiles[player]
 	if not profile then return {} end
 	ratio = math.clamp(tonumber(ratio) or 0.35, 0, 1)
-
 	local drops = {}
 	for _, resource in { "Wood", "Stone", "Food", "Gold" } do
 		local current = math.floor(profile[resource] or 0)
 		local amount = math.floor(current * ratio)
-		if amount > 0 then
-			profile[resource] = current - amount
-			drops[resource] = amount
-		else
-			drops[resource] = 0
-		end
+		profile[resource] = current - amount
+		drops[resource] = amount
 	end
 	syncLeaderstats(player)
 	return drops
@@ -223,9 +266,7 @@ function PlayerService.Load(player)
 	local profile = defaultProfile()
 	if persistentEnabled and store then
 		local ok, data = pcall(function() return store:GetAsync(`p_{player.UserId}`) end)
-		if ok then
-			profile = normalizeProfile(data)
-		end
+		if ok then profile = normalizeProfile(data) end
 	end
 	updateAge(profile)
 	profiles[player] = profile
