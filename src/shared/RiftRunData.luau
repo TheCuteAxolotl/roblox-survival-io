@@ -80,7 +80,7 @@ RiftRunData.Stages = {
 	[3] = { Label = "GLOOMFANG", Kind = "Boss", Enemy = "Gloomfang", BaseCount = 1, Adds = 4, RewardGold = 180, RewardXP = 110, Essence = 120 },
 	[4] = { Label = "CORRUPTION STORM", Kind = "Survival", Enemy = "RiftHunter", Duration = 32, SpawnEvery = 3.5, RewardGold = 150, RewardXP = 90, Essence = 95 },
 	[5] = { Label = "ELITE HUNT", Kind = "Mixed", Enemy = "RiftHunter", BaseCount = 8, Brutes = 3, RewardGold = 175, RewardXP = 105, Essence = 100 },
-	[6] = { Label = "RIFT TYRANT", Kind = "Boss", Enemy = "RiftTyrant", BaseCount = 1, Adds = 6, RewardGold = 500, RewardXP = 320, Essence = 180 },
+	[6] = { Label = "RIFT OVERLORD", Kind = "Boss", BossPool = { "RiftTyrant", "StormMaw", "VoidStalker" }, BaseCount = 1, Adds = 6, RewardGold = 500, RewardXP = 320, Essence = 180 },
 }
 
 RiftRunData.Enemies = {
@@ -138,8 +138,35 @@ RiftRunData.Enemies = {
 		Cooldown = 1.15,
 		Scale = 1.8,
 		Boss = true,
+		Special = "Pulse",
 		Color = Color3.fromRGB(58, 35, 69),
 		Glow = Color3.fromRGB(255, 74, 213),
+	},
+	StormMaw = {
+		Label = "STORM MAW",
+		Health = 6400,
+		Damage = 63,
+		Speed = 8.5,
+		Range = 11,
+		Cooldown = 1.55,
+		Scale = 2.05,
+		Boss = true,
+		Special = "Slam",
+		Color = Color3.fromRGB(48, 62, 78),
+		Glow = Color3.fromRGB(91, 199, 255),
+	},
+	VoidStalker = {
+		Label = "VOID STALKER",
+		Health = 4700,
+		Damage = 46,
+		Speed = 16,
+		Range = 7,
+		Cooldown = 0.82,
+		Scale = 1.55,
+		Boss = true,
+		Special = "Bolts",
+		Color = Color3.fromRGB(49, 36, 72),
+		Glow = Color3.fromRGB(166, 92, 255),
 	},
 }
 
