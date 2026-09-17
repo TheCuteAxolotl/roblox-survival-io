@@ -8,7 +8,8 @@ local ItemData = require(ReplicatedStorage.Shared.ItemData)
 
 local BuildService = {}
 local BUILD_TAG = "PlayerBuild"
-local trapCooldowns = setmetatable({}, { __mode = "k" })
+local RESOURCE_CORE_TAG = "ResourceCore"
+local trapCooldowns = {}
 
 local function makePart(parent, name, size, position, color, material)
 	local p = Instance.new("Part")
@@ -26,9 +27,7 @@ end
 
 local function tagBuild(model)
 	for _, child in model:GetDescendants() do
-		if child:IsA("BasePart") then
-			CollectionService:AddTag(child, BUILD_TAG)
-		end
+		if child:IsA("BasePart") then CollectionService:AddTag(child, BUILD_TAG) end
 	end
 end
 
@@ -48,22 +47,75 @@ function BuildService.CountOwned(player, buildType)
 	return count
 end
 
+function BuildService.GetOwnedCounts(player)
+	local counts = {}
+	for itemName, item in ItemData.Items do
+		if item.Category == "Build" then
+			counts[itemName] = BuildService.CountOwned(player, itemName)
+		end
+	end
+	return counts
+end
+
+local function placementCFrame(item, position, rotation)
+	local y = item.PreviewY or ((item.PreviewSize and item.PreviewSize.Y or 2) / 2)
+	return CFrame.new(position.X, y, position.Z) * CFrame.Angles(0, math.rad(rotation or 0), 0)
+end
+
+function BuildService.CanPlace(player, buildType, position, rotation)
+	local item = ItemData.Items[buildType]
+	if not item or item.Category ~= "Build" then return false, "Unknown building." end
+	if typeof(position) ~= "Vector3" then return false, "Invalid placement." end
+
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not root then return false, "Character is not ready." end
+	local flatRoot = Vector3.new(root.Position.X, 0, root.Position.Z)
+	local flatPosition = Vector3.new(position.X, 0, position.Z)
+	if (flatRoot - flatPosition).Magnitude > Config.BuildDistance then return false, "Place it closer to you." end
+
+	local half = Config.WorldSize / 2
+	local size = item.PreviewSize or Vector3.new(5, 5, 5)
+	if math.abs(position.X) > half - (size.X / 2) - 4 or math.abs(position.Z) > half - (size.Z / 2) - 4 then
+		return false, "Outside the map."
+	end
+
+	if math.abs(position.Z) < Config.RiverHalfWidth + (size.Z / 2) + Config.RiverNoBuildPadding then
+		return false, "You cannot build in the river or on its banks."
+	end
+
+	if item.BuildLimit and BuildService.CountOwned(player, buildType) >= item.BuildLimit then
+		return false, `Build limit reached ({item.BuildLimit}).`
+	end
+
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = player.Character and { player.Character } or {}
+	local clearance = Config.BuildClearance or 0.5
+	local querySize = Vector3.new(size.X + clearance * 2, math.max(2, size.Y), size.Z + clearance * 2)
+	local touching = Workspace:GetPartBoundsInBox(placementCFrame(item, position, rotation), querySize, params)
+	for _, hit in touching do
+		if CollectionService:HasTag(hit, BUILD_TAG) then
+			return false, "That would overlap another building."
+		end
+		if CollectionService:HasTag(hit, RESOURCE_CORE_TAG) then
+			return false, "Move it away from the tree or rock."
+		end
+	end
+
+	return true
+end
+
 local function setupTrap(model, trigger, ownerUserId)
-	trapCooldowns[model] = {}
 	trigger.Touched:Connect(function(hit)
 		local character = hit:FindFirstAncestorOfClass("Model")
 		local victim = character and Players:GetPlayerFromCharacter(character)
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if not victim or victim.UserId == ownerUserId or not humanoid or humanoid.Health <= 0 then return end
 
-		local bucket = trapCooldowns[model]
-		if not bucket then
-			bucket = {}
-			trapCooldowns[model] = bucket
-		end
+		local key = `{model:GetDebugId()}:{victim.UserId}`
 		local now = os.clock()
-		if now - (bucket[victim.UserId] or 0) < 2.5 then return end
-		bucket[victim.UserId] = now
+		if now - (trapCooldowns[key] or 0) < 2.5 then return end
+		trapCooldowns[key] = now
 
 		humanoid:TakeDamage(18)
 		local oldSpeed = humanoid.WalkSpeed
@@ -78,40 +130,27 @@ end
 
 function BuildService.PlaceBuild(player, buildType, position, rotation)
 	local item = ItemData.Items[buildType]
-	if not item or item.Category ~= "Build" then return nil, "Unknown building." end
-	if typeof(position) ~= "Vector3" then return nil, "Invalid placement." end
-
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	if not root or (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(position.X, 0, position.Z)).Magnitude > Config.BuildDistance then
-		return nil, "Place it closer to you."
-	end
-	if math.abs(position.X) > Config.WorldSize / 2 - 4 or math.abs(position.Z) > Config.WorldSize / 2 - 4 then
-		return nil, "Outside the map."
-	end
-
-	if item.BuildLimit and BuildService.CountOwned(player, buildType) >= item.BuildLimit then
-		return nil, `Build limit reached ({item.BuildLimit}).`
-	end
+	local allowed, reason = BuildService.CanPlace(player, buildType, position, rotation)
+	if not allowed then return nil, reason end
 
 	local arena = getArena()
 	if not arena then return nil, "Arena is not ready." end
-
 	local model = Instance.new("Model")
 	model.Name = buildType
 	model.Parent = arena
 	local angle = math.rad(rotation or 0)
 
 	if buildType == "Wall" then
-		local wall = makePart(model, "Wall", Vector3.new(10, 6, 1.2), Vector3.new(position.X, 3, position.Z), Color3.fromRGB(151, 101, 62), Enum.Material.WoodPlanks)
+		local wall = makePart(model, "Wall", Vector3.new(10, 12, 1.2), Vector3.new(position.X, 6, position.Z), Color3.fromRGB(151, 101, 62), Enum.Material.WoodPlanks)
 		wall.CFrame = CFrame.new(wall.Position) * CFrame.Angles(0, angle, 0)
 		model.PrimaryPart = wall
 	elseif buildType == "StoneWall" then
-		local wall = makePart(model, "StoneWall", Vector3.new(10, 6, 1.6), Vector3.new(position.X, 3, position.Z), Color3.fromRGB(118, 121, 128), Enum.Material.Slate)
+		local wall = makePart(model, "StoneWall", Vector3.new(10, 12, 1.6), Vector3.new(position.X, 6, position.Z), Color3.fromRGB(118, 121, 128), Enum.Material.Slate)
 		wall.CFrame = CFrame.new(wall.Position) * CFrame.Angles(0, angle, 0)
 		model.PrimaryPart = wall
 		for x = -4, 4, 2 do
-			local seam = makePart(model, "StoneBlock", Vector3.new(1.7, 1.2, 1.75), Vector3.new(position.X, 5.1, position.Z), Color3.fromRGB(132, 135, 142), Enum.Material.Slate)
-			seam.CFrame = CFrame.new(position.X, 5.1, position.Z) * CFrame.Angles(0, angle, 0) * CFrame.new(x, 0, 0)
+			local seam = makePart(model, "StoneBlock", Vector3.new(1.7, 1.3, 1.75), Vector3.new(position.X, 10.2, position.Z), Color3.fromRGB(132, 135, 142), Enum.Material.Slate)
+			seam.CFrame = CFrame.new(position.X, 10.2, position.Z) * CFrame.Angles(0, angle, 0) * CFrame.new(x, 0, 0)
 			seam.CanCollide = false
 		end
 	elseif buildType == "Spike" then
@@ -166,7 +205,7 @@ function BuildService.PlaceBuild(player, buildType, position, rotation)
 		model.PrimaryPart = base
 		for _, z in { -0.75, 0.75 } do
 			local log = makePart(model, "Log", Vector3.new(4, 0.65, 0.65), Vector3.new(position.X, 0.7, position.Z + z), Color3.fromRGB(112, 74, 43), Enum.Material.Wood)
-			log.CFrame = log.CFrame * CFrame.Angles(0, math.rad(z > 0 and 32 or -32), 0)
+			log.CFrame *= CFrame.Angles(0, math.rad(z > 0 and 32 or -32), 0)
 		end
 		local flame = makePart(model, "Flame", Vector3.new(1.5, 2.5, 1.5), Vector3.new(position.X, 2, position.Z), Color3.fromRGB(255, 153, 52), Enum.Material.Neon)
 		flame.Shape = Enum.PartType.Ball
@@ -188,6 +227,32 @@ function BuildService.PlaceBuild(player, buildType, position, rotation)
 	model:SetAttribute("MaxHealth", item.Health or 100)
 	tagBuild(model)
 	return model, `{item.Label} placed.`
+end
+
+function BuildService.DamageBuild(player, model, damage)
+	if typeof(model) ~= "Instance" or not model:IsA("Model") or not model.Parent then
+		return false, nil, "That structure is gone."
+	end
+	local buildType = model:GetAttribute("BuildType")
+	local item = ItemData.Items[buildType]
+	if not item or item.Category ~= "Build" then return false, nil, "Invalid structure." end
+
+	local health = (model:GetAttribute("Health") or 1) - math.max(1, damage or 1)
+	model:SetAttribute("Health", health)
+	if health > 0 then return false, nil, `Structure: {math.max(0, health)} HP` end
+
+	local ownerUserId = model:GetAttribute("OwnerUserId") or 0
+	local ratio = ownerUserId == player.UserId and Config.OwnBuildRefundRatio or Config.EnemyBuildSalvageRatio
+	local salvage = {}
+	for resource, amount in item.Cost or {} do
+		salvage[resource] = math.floor((amount * ratio) + 0.5)
+	end
+	local label = item.Label or buildType
+	model:Destroy()
+	if ownerUserId == player.UserId then
+		return true, salvage, `{label} dismantled — supplies returned.`
+	end
+	return true, salvage, `{label} destroyed — salvaged supplies.`
 end
 
 return BuildService
