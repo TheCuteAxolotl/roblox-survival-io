@@ -31,6 +31,10 @@ SurvivalItemData.Items = {
 	LeatherPouch = { Label = "Leather Pouch", Rarity = "Uncommon", Stack = 6, Description = "Valuable crafted trade item." },
 	BoneKnife = { Label = "Bone Knife", Rarity = "Uncommon", Stack = 4, Description = "A compact crafted survival knife." },
 
+	DireFang = { Label = "Dire Fang", Rarity = "Rare", Stack = 12, Description = "A large predator fang from Blackwood Forest. Used in ranger gear." },
+	MoonSilk = { Label = "Moon Silk", Rarity = "Rare", Stack = 12, Description = "Silk harvested from Blackwood brood spiders. They only become aggressive at night." },
+	ForestHeart = { Label = "Forest Heart", Rarity = "Legendary", Stack = 4, Description = "A rare trophy from Blackwood Bears. Valuable to collectors.", Collectible = true },
+
 	Bandage = { Label = "Bandage", Rarity = "Common", Stack = 10, Description = "Restores 28 health.", Use = "Heal", Heal = 28 },
 	FieldDressing = { Label = "Field Dressing", Rarity = "Uncommon", Stack = 8, Description = "Heavy bandage that restores 55 health.", Use = "Heal", Heal = 55 },
 	CookedMeat = { Label = "Cooked Meat", Rarity = "Common", Stack = 10, Description = "Restores 32 hunger and 8 health.", Use = "Food", Hunger = 32, Heal = 8 },
@@ -50,12 +54,13 @@ SurvivalItemData.Items = {
 
 	LeatherArmor = { Label = "Leather Armor", Rarity = "Uncommon", Stack = 1, Description = "Equip for 10% incoming-damage reduction.", Use = "Armor", ArmorReduction = 0.10, ArmorStyle = "Leather" },
 	FurArmor = { Label = "Fur Armor", Rarity = "Rare", Stack = 1, Description = "Equip for 16% damage reduction and snow resistance.", Use = "Armor", ArmorReduction = 0.16, SnowResist = true, ArmorStyle = "Fur" },
+	RangerArmor = { Label = "Blackwood Ranger Armor", Rarity = "Epic", Stack = 1, Description = "Forest-forged armor with 20% damage reduction.", Use = "Armor", ArmorReduction = 0.20, ArmorStyle = "Ranger" },
 	StoneplateArmor = { Label = "Stoneplate Armor", Rarity = "Epic", Stack = 1, Description = "Heavy armor with 24% damage reduction but -2 movement speed.", Use = "Armor", ArmorReduction = 0.24, WalkSpeedPenalty = 2, ArmorStyle = "Stone" },
 	DragonforgedArmor = { Label = "Dragonforged Armor", Rarity = "Mythic", Stack = 1, Description = "Dungeon-forged armor with 32% damage reduction.", Use = "Armor", ArmorReduction = 0.32, ArmorStyle = "Dragon" },
 
 	DragonScale = { Label = "Dragon Scale", Rarity = "Legendary", Stack = 12, Description = "Extremely rare dungeon material. Valuable to collectors and advanced crafting.", Collectible = true },
 	DemonCore = { Label = "Demon Core", Rarity = "Legendary", Stack = 8, Description = "A dangerous core taken from a dungeon demon.", Collectible = true },
-	AncientRelic = { Label = "Ancient Relic", Rarity = "Mythic", Stack = 1, Description = "A numbered-feeling trophy-grade dungeon collectible. Very rare.", Collectible = true },
+	AncientRelic = { Label = "Ancient Relic", Rarity = "Mythic", Stack = 1, Description = "A trophy-grade dungeon collectible. Very rare.", Collectible = true },
 	EclipseCloak = { Label = "Eclipse Cloak", Rarity = "Mythic", Stack = 1, Description = "Dungeon-only cloak. Equip for +10% damage and +2 movement speed.", Use = "Cloak", DamageMultiplier = 1.10, WalkSpeedBonus = 2, Collectible = true },
 	ObsidianShard = { Label = "Obsidian Shard", Rarity = "Epic", Stack = 16, Description = "Rare cave and dungeon material used in endgame crafting.", Collectible = true },
 
