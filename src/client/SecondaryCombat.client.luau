@@ -13,9 +13,18 @@ local getState = remotes:WaitForChild("GetState")
 
 local selectedItem = nil
 
+local function selectedData()
+	return selectedItem and ItemData.Items[selectedItem] or nil
+end
+
 local function isRangedSelected()
-	local item = selectedItem and ItemData.Items[selectedItem]
+	local item = selectedData()
 	return item ~= nil and item.Ranged == true
+end
+
+local function suppressMeleeSwing()
+	local item = selectedData()
+	return item and (item.Ranged == true or item.Kind == "Shield" or item.CanAttack == false)
 end
 
 local function fireAtMouse()
@@ -36,8 +45,12 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then fireAtMouse() end
 end)
 
-player.CharacterAdded:Connect(function()
-	task.wait(0.25)
+workspace.ChildAdded:Connect(function(child)
+	if child.Name == "LocalSwing" and suppressMeleeSwing() then
+		task.defer(function()
+			if child.Parent then child:Destroy() end
+		end)
+	end
 end)
 
 task.spawn(function()
