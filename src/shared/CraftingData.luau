@@ -26,6 +26,7 @@ CraftingData.Recipes = {
 	BoneKnife = { Label = "Bone Knife", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Items = { Bone = 2, Rope = 1 } }, Result = { Item = "BoneKnife", Amount = 1 } },
 	FurWrap = { Label = "Fur Wrap", Rarity = "Rare", Station = "Workbench", Ingredients = { Items = { Fur = 4, Cloth = 2, ReinforcedRope = 1 } }, Result = { Item = "FurWrap", Amount = 1 } },
 	CookedMeat = { Label = "Cooked Meat", Rarity = "Common", Station = "Campfire", Ingredients = { Items = { RawMeat = 1 } }, Result = { Item = "CookedMeat", Amount = 1 } },
+	CookedBeef = { Label = "Cooked Beef", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Items = { RawBeef = 1 } }, Result = { Item = "CookedBeef", Amount = 1 } },
 	Charcoal = { Label = "Charcoal", Rarity = "Common", Station = "Campfire", Ingredients = { Resources = { Wood = 4 } }, Result = { Item = "Charcoal", Amount = 2 } },
 	BoneBroth = { Label = "Bone Broth", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Items = { Bone = 1, RawMeat = 1, Herb = 1 } }, Result = { Item = "BoneBroth", Amount = 1 } },
 	TrailRation = { Label = "Trail Ration", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Items = { CookedMeat = 1, Wheat = 2 } }, Result = { Item = "TrailRation", Amount = 1 } },
@@ -37,7 +38,7 @@ CraftingData.Order = {
 	"Rope", "DesertRope", "Cloth", "DesertCloth", "WorkbenchKit", "FarmPlotKit", "CampfireKit", "Torch",
 	"Bandage", "EmptyFlask", "ChestKit", "ReinforcedRope", "FieldDressing", "HealthPotion",
 	"SpeedPotion", "FortifyPotion", "Antidote", "SpikeTrapKit", "WebTrapKit", "Fertilizer",
-	"LeatherPouch", "BoneKnife", "FurWrap", "CookedMeat", "Charcoal", "BoneBroth",
+	"LeatherPouch", "BoneKnife", "FurWrap", "CookedMeat", "CookedBeef", "Charcoal", "BoneBroth",
 	"TrailRation", "HerbalTea", "WheatSeeds", "SurvivalElixir",
 }
 
