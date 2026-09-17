@@ -50,7 +50,7 @@ title.TextColor3 = Color3.fromRGB(226, 202, 255)
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 15
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.Text = "RIFT EXPEDITION"
+title.Text = "ASCENSION"
 title.Parent = top
 
 local status = Instance.new("TextLabel")
@@ -165,7 +165,7 @@ choiceTitle.AnchorPoint = Vector2.new(0.5, 0)
 choiceTitle.Position = UDim2.new(0.5, 0, 0.18, 0)
 choiceTitle.Size = UDim2.fromOffset(500, 44)
 choiceTitle.BackgroundTransparency = 1
-choiceTitle.Text = "CHOOSE A RIFT POWER"
+choiceTitle.Text = "CHOOSE AN ASCENSION POWER"
 choiceTitle.TextColor3 = Color3.fromRGB(238, 220, 255)
 choiceTitle.Font = Enum.Font.GothamBlack
 choiceTitle.TextSize = 22
@@ -291,11 +291,11 @@ local function render(state)
 	runCard.Visible = inRun
 
 	if rally then
-		title.Text = "RIFT RALLY"
+		title.Text = "ASCENSION RALLY"
 		status.Text = string.format("Starting in %ds  •  %d player%s ready", state.RallyRemaining or 0, state.PartySize or 0, (state.PartySize or 0) == 1 and "" or "s")
-		sub.Text = string.format("%s  •  Friends can join at the same gate.", state.ModifierLabel or "STABLE RIFT")
+		sub.Text = string.format("%s  •  Friends can join at the same gate.", state.ModifierLabel or "STABLE ASCENSION")
 	elseif inRun then
-		title.Text = string.format("RIFT // STAGE %d OF %d", state.Stage or 0, RiftData.MaxStages)
+		title.Text = string.format("ASCENSION // STAGE %d OF %d", state.Stage or 0, RiftData.MaxStages)
 		if (state.StageTimeRemaining or 0) > 0 then
 			status.Text = string.format("%s  •  SURVIVE %ds  •  %d ACTIVE", state.StageLabel or "", state.StageTimeRemaining, state.LiveEnemies or 0)
 		else
@@ -308,15 +308,15 @@ local function render(state)
 			sub.Text = "DOWNED • wait for a revive or Second Wind."
 			sub.TextColor3 = Color3.fromRGB(255, 130, 135)
 		else
-			sub.Text = string.format("%s  •  PARTY %d", state.ModifierLabel or "STABLE RIFT", state.PartySize or 1)
+			sub.Text = string.format("%s  •  PARTY %d", state.ModifierLabel or "STABLE ASCENSION", state.PartySize or 1)
 			sub.TextColor3 = Color3.fromRGB(174, 174, 188)
 		end
 
 		bank.Text = string.format("BANK  %d GOLD  •  %d XP", state.BankGold or 0, state.BankXP or 0)
-		level.Text = string.format("RIFT LEVEL %d  •  ESSENCE %d/%d", state.RunLevel or 1, state.Essence or 0, state.NextEssence or 70)
+		level.Text = string.format("TIER %d  •  RUN LV %d  •  ESSENCE %d/%d", state.AscensionTier or 1, state.RunLevel or 1, state.Essence or 0, state.NextEssence or 70)
 		local nextEssence = math.max(1, state.NextEssence or 70)
 		essenceFill.Size = UDim2.fromScale(math.clamp((state.Essence or 0) / nextEssence, 0, 1), 1)
-		lives.Text = string.format("SECOND WINDS: %d  •  Dodge and positioning matter.", state.SecondWinds or 0)
+		lives.Text = string.format("RENOWN %d  •  SECOND WINDS %d", state.Renown or 0, state.SecondWinds or 0)
 	end
 
 	renderChoices(state.PendingChoices)
