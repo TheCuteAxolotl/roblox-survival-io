@@ -368,7 +368,7 @@ local function buildGate()
 	light.Brightness = 2.5
 	light.Parent = portal
 	gatePrompt = Instance.new("ProximityPrompt")
-	gatePrompt.ActionText = "Join Expedition"
+	gatePrompt.ActionText = "Enter Ascension"
 	gatePrompt.ObjectText = "Solo or rally with friends"
 	gatePrompt.MaxActivationDistance = 14
 	gatePrompt.HoldDuration = 0.45
@@ -871,7 +871,7 @@ local function endRunIfEmpty()
 		run.StageSpawning = false
 		run.StageTimerEnds = 0
 		if extractPrompt then extractPrompt.Enabled = false end
-		if gatePrompt then gatePrompt.Enabled = true gatePrompt.ActionText = "Join Expedition" end
+		if gatePrompt then gatePrompt.Enabled = true gatePrompt.ActionText = "Enter Ascension" end
 		return true
 	end
 	return false
@@ -989,7 +989,7 @@ local function beginExpedition()
 	run.Status = "Idle"
 	run.Stage = 0
 	run.StageLabel = ""
-	if gatePrompt then gatePrompt.Enabled = true gatePrompt.ActionText = "Join Expedition" end
+	if gatePrompt then gatePrompt.Enabled = true gatePrompt.ActionText = "Enter Ascension" end
 end
 
 local function joinRally(player)
