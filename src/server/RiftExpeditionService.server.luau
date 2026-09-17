@@ -485,6 +485,10 @@ end
 
 local function payoutAndReturn(player, fraction, reason)
 	if not run.Participants[player] then return end
+	player:SetAttribute("RiftRunsSession", (player:GetAttribute("RiftRunsSession") or 0) + 1)
+	if reason == "RIFT CONQUERED" then
+		player:SetAttribute("RiftVictoriesSession", (player:GetAttribute("RiftVictoriesSession") or 0) + 1)
+	end
 	local gold = player:GetAttribute("RiftBankGold") or 0
 	local xp = player:GetAttribute("RiftBankXP") or 0
 	local goldMult = player:GetAttribute("RiftGoldMultiplier") or 1
@@ -687,6 +691,9 @@ local function spawnStage(stageIndex)
 	if not stage then return end
 	run.Stage = stageIndex
 	run.StageLabel = stage.Label
+	for player in run.Participants do
+		player:SetAttribute("RiftBestStageSession", math.max(player:GetAttribute("RiftBestStageSession") or 0, stageIndex))
+	end
 	run.ExtractAvailable = false
 	if extractPrompt then extractPrompt.Enabled = false end
 	pushAll(string.format("STAGE %d - %s", stageIndex, stage.Label))
@@ -843,10 +850,16 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	player:SetAttribute("InRiftExpedition", false)
 	player:SetAttribute("RiftDowned", false)
+	player:SetAttribute("RiftRunsSession", 0)
+	player:SetAttribute("RiftVictoriesSession", 0)
+	player:SetAttribute("RiftBestStageSession", 0)
 end)
 for _, player in Players:GetPlayers() do
 	player:SetAttribute("InRiftExpedition", false)
 	player:SetAttribute("RiftDowned", false)
+	player:SetAttribute("RiftRunsSession", player:GetAttribute("RiftRunsSession") or 0)
+	player:SetAttribute("RiftVictoriesSession", player:GetAttribute("RiftVictoriesSession") or 0)
+	player:SetAttribute("RiftBestStageSession", player:GetAttribute("RiftBestStageSession") or 0)
 end
 
 print("[RiftExpedition] Rift runs online: rally, six stages, random powers, extraction, solo Second Wind and co-op revives.")
