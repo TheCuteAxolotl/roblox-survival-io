@@ -697,14 +697,21 @@ task.spawn(function()
 			if not state or not hum or hum.Health <= 0 or not root then continue end
 			if standingInWater(root) then state.Thirst = math.min(100, state.Thirst + WATER_REGEN_PER_SECOND) end
 
-			local speed = 16 + PlayerService.GetHatEffect(player, "WalkSpeedBonus", 0) + (player:GetAttribute("CloakWalkBonus") or 0) - (player:GetAttribute("ArmorWalkPenalty") or 0)
+			local speed = 16
+				+ PlayerService.GetHatEffect(player, "WalkSpeedBonus", 0)
+				+ (player:GetAttribute("CloakWalkBonus") or 0)
+				+ (player:GetAttribute("RiftSpeedBonus") or 0)
+				- (player:GetAttribute("ArmorWalkPenalty") or 0)
 			local inSnow = biomeAt(root.Position) == "Snow"
 			local snowImmune = PlayerService.GetHatEffect(player, "SnowSpeedImmunity", false) == true or player:GetAttribute("ArmorSnowResist") == true or now < state.Buffs.ColdResistUntil
 			if inSnow and not snowImmune then speed *= 0.72 end
 			if now < state.Buffs.SpeedUntil then speed += 5 end
 			hum.WalkSpeed = math.max(8, speed)
 
-			local targetMax = 100 + PlayerService.GetHatEffect(player, "MaxHealthBonus", 0) + (now < state.Buffs.FortifyUntil and 35 or 0)
+			local targetMax = 100
+				+ PlayerService.GetHatEffect(player, "MaxHealthBonus", 0)
+				+ (player:GetAttribute("RiftMaxHealthBonus") or 0)
+				+ (now < state.Buffs.FortifyUntil and 35 or 0)
 			targetMax = math.max(35, targetMax)
 			if hum.MaxHealth ~= targetMax then hum.MaxHealth = targetMax hum.Health = math.min(hum.Health, hum.MaxHealth) end
 
