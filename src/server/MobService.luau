@@ -113,6 +113,7 @@ local function spawnMob(mobName)
 	root.CanCollide = true
 	root.Parent = model
 	model.PrimaryPart = root
+	pcall(function() root:SetNetworkOwner(nil) end)
 
 	local bodyScale = mobName == "SnowBear" and 1.65 or (mobName == "Spider" or mobName == "Scorpion") and 0.7 or 1
 	local body = makeBodyPart(model, root, "Body", Vector3.new(3.2, 2.2, 4.2) * bodyScale, Vector3.new(0, 0.4, 0), data.Color, Enum.Material.SmoothPlastic)
@@ -151,7 +152,6 @@ local function spawnMob(mobName)
 	}
 
 	hum.Died:Connect(function()
-		local record = active[model]
 		active[model] = nil
 		dropLoot(model, mobName)
 		task.delay(1.5, function() if model.Parent then model:Destroy() end end)
@@ -180,6 +180,11 @@ local function poisonPlayer(player, duration)
 	player:SetAttribute("SurvivalPoisonUntil", math.max(player:GetAttribute("SurvivalPoisonUntil") or 0, untilTime))
 end
 
+local function incomingDamage(player, baseDamage)
+	local reduction = math.clamp(player:GetAttribute("ArmorReduction") or 0, 0, 0.65)
+	return math.max(1, math.floor((baseDamage or 0) * (1 - reduction) + 0.5))
+end
+
 local function tickMob(model, record, now)
 	if not model.Parent or not model.PrimaryPart then active[model] = nil return end
 	local hum = model:FindFirstChildOfClass("Humanoid")
@@ -195,7 +200,7 @@ local function tickMob(model, record, now)
 				hum:MoveTo(targetRoot.Position)
 				if distance <= (data.AttackRange or 4) and now - record.LastAttack >= (data.AttackCooldown or 1.2) then
 					record.LastAttack = now
-					targetHum:TakeDamage(data.Damage or 8)
+					targetHum:TakeDamage(incomingDamage(target, data.Damage or 8))
 					if data.PoisonChance and math.random() <= data.PoisonChance then poisonPlayer(target, 6) end
 				end
 				return
@@ -220,7 +225,6 @@ function MobService.Init()
 	for mobName, data in MobData.Mobs do
 		for _ = 1, data.Count or 1 do spawnMob(mobName) end
 	end
-
 	task.spawn(function()
 		while initialized do
 			task.wait(0.45)
