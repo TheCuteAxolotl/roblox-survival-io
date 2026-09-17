@@ -292,15 +292,15 @@ function WorldService.BuildArena()
 		boundary.CanCollide = true
 	end
 
-	for _ = 1, 42 do makeResource("Tree", "Snow") end
-	for _ = 1, 34 do makeResource("Rock", "Snow") end
-	for _ = 1, 16 do makeResource("Berry", "Snow") end
-	for _ = 1, 58 do makeResource("Tree", "Grass") end
-	for _ = 1, 32 do makeResource("Rock", "Grass") end
-	for _ = 1, 28 do makeResource("Berry", "Grass") end
-	for _ = 1, 20 do makeResource("Tree", "Desert") end
-	for _ = 1, 40 do makeResource("Rock", "Desert") end
-	for _ = 1, 10 do makeResource("Berry", "Desert") end
+	for _ = 1, 66 do makeResource("Tree", "Snow") end
+	for _ = 1, 52 do makeResource("Rock", "Snow") end
+	for _ = 1, 24 do makeResource("Berry", "Snow") end
+	for _ = 1, 92 do makeResource("Tree", "Grass") end
+	for _ = 1, 52 do makeResource("Rock", "Grass") end
+	for _ = 1, 44 do makeResource("Berry", "Grass") end
+	for _ = 1, 34 do makeResource("Tree", "Desert") end
+	for _ = 1, 62 do makeResource("Rock", "Desert") end
+	for _ = 1, 18 do makeResource("Berry", "Desert") end
 
 	for _, pos in {
 		Vector3.new(-430, 1, -220), Vector3.new(-430, 1, 220),
