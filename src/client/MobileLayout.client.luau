@@ -27,14 +27,15 @@ local function tuneMainHUD()
 	if not gui then return end
 	local hotbar = gui:FindFirstChild("Hotbar")
 	if hotbar and hotbar:IsA("ScrollingFrame") then
-		hotbar.Position = UDim2.new(0.5, -24, 1, -8)
-		hotbar.Size = UDim2.new(0.72, 0, 0, 54)
+		hotbar.AnchorPoint = Vector2.new(0.5, 1)
+		hotbar.Position = UDim2.new(0.5, 0, 1, -8)
+		hotbar.Size = UDim2.new(0.74, 0, 0, 52)
 		hotbar.BackgroundTransparency = 0.82
 		hotbar.ScrollBarThickness = 2
 		local constraint = hotbar:FindFirstChildOfClass("UISizeConstraint")
 		if constraint then
 			constraint.MinSize = Vector2.new(0, 0)
-			constraint.MaxSize = Vector2.new(760, 54)
+			constraint.MaxSize = Vector2.new(760, 52)
 		end
 	end
 
