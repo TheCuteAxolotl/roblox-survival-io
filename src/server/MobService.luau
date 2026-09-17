@@ -1,4 +1,5 @@
 local CollectionService = game:GetService("CollectionService")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -12,6 +13,10 @@ local MobService = {}
 local active = {}
 local initialized = false
 
+local FOREST_CENTER = Vector3.new(0, 0, 365)
+local FOREST_HALF_X = 150
+local FOREST_HALF_Z = 125
+
 local function arena()
 	return Workspace:FindFirstChild("SurvivalArena")
 end
@@ -24,6 +29,13 @@ local function biomeXRange(biome)
 end
 
 local function randomPoint(biome)
+	if biome == "Forest" then
+		return Vector3.new(
+			math.random(math.floor(FOREST_CENTER.X - FOREST_HALF_X), math.floor(FOREST_CENTER.X + FOREST_HALF_X)),
+			3,
+			math.random(math.floor(FOREST_CENTER.Z - FOREST_HALF_Z), math.floor(FOREST_CENTER.Z + FOREST_HALF_Z))
+		)
+	end
 	local xMin, xMax = biomeXRange(biome)
 	local half = Config.WorldSize / 2
 	local margin = Config.RiverHalfWidth + 55
@@ -32,7 +44,7 @@ local function randomPoint(biome)
 end
 
 local function safePoint(biome)
-	for _ = 1, 40 do
+	for _ = 1, 50 do
 		local position = randomPoint(biome)
 		local hits = Workspace:GetPartBoundsInBox(CFrame.new(position), Vector3.new(8, 7, 8))
 		local blocked = false
@@ -91,7 +103,12 @@ local function dropLoot(model, mobName)
 	end
 	local attackerId = model:GetAttribute("LastAttackerUserId")
 	local attacker = attackerId and Players:GetPlayerByUserId(attackerId)
-	if attacker then PlayerService.Add(attacker, { XP = math.max(4, math.floor((data.Health or 50) / 10)), Gold = data.Hostile and 4 or 2 }) end
+	if attacker then
+		PlayerService.Add(attacker, {
+			XP = data.XPReward or math.max(4, math.floor((data.Health or 50) / 10)),
+			Gold = data.GoldReward or (data.Hostile and 4 or 2),
+		})
+	end
 end
 
 local function spawnMob(mobName)
@@ -103,6 +120,8 @@ local function spawnMob(mobName)
 	model.Name = mobName
 	model:SetAttribute("SurvivalMob", true)
 	model:SetAttribute("MobType", mobName)
+	model:SetAttribute("MobBiome", data.Biome)
+	model:SetAttribute("NightOnly", data.NightOnly == true)
 	model.Parent = world
 
 	local root = Instance.new("Part")
@@ -115,14 +134,15 @@ local function spawnMob(mobName)
 	model.PrimaryPart = root
 	pcall(function() root:SetNetworkOwner(nil) end)
 
-	local bodyScale = mobName == "SnowBear" and 1.65 or (mobName == "Spider" or mobName == "Scorpion") and 0.7 or 1
+	local archetype = data.Archetype or mobName
+	local bodyScale = data.Scale or 1
 	local body = makeBodyPart(model, root, "Body", Vector3.new(3.2, 2.2, 4.2) * bodyScale, Vector3.new(0, 0.4, 0), data.Color, Enum.Material.SmoothPlastic)
 	body.CanCollide = false
-	if mobName == "Spider" or mobName == "Scorpion" then
+	if archetype == "Spider" or archetype == "Scorpion" then
 		body.Shape = Enum.PartType.Ball
 		for side = -1, 1, 2 do
 			for i = 1, 4 do
-				local leg = makeBodyPart(model, root, `Leg{side}_{i}`, Vector3.new(2.3, 0.25, 0.25), Vector3.new(side * 1.6, 0.1, (i - 2.5) * 0.7), data.Color, Enum.Material.SmoothPlastic)
+				local leg = makeBodyPart(model, root, `Leg{side}_{i}`, Vector3.new(2.3, 0.25, 0.25) * bodyScale, Vector3.new(side * 1.6, 0.1, (i - 2.5) * 0.7) * bodyScale, data.Color, Enum.Material.SmoothPlastic)
 				leg.Orientation = Vector3.new(0, 0, side * 20)
 			end
 		end
@@ -155,7 +175,7 @@ local function spawnMob(mobName)
 		active[model] = nil
 		dropLoot(model, mobName)
 		task.delay(1.5, function() if model.Parent then model:Destroy() end end)
-		task.delay(18, function() if initialized and arena() then spawnMob(mobName) end end)
+		task.delay(data.RespawnSeconds or 18, function() if initialized and arena() then spawnMob(mobName) end end)
 	end)
 	return model
 end
@@ -185,13 +205,19 @@ local function incomingDamage(player, baseDamage)
 	return math.max(1, math.floor((baseDamage or 0) * (1 - reduction) + 0.5))
 end
 
+local function isNight()
+	local hour = Lighting.ClockTime
+	return hour >= 19 or hour < 6
+end
+
 local function tickMob(model, record, now)
 	if not model.Parent or not model.PrimaryPart then active[model] = nil return end
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	if not hum or hum.Health <= 0 then return end
 	local data = record.Data
+	local aggressiveNow = data.Hostile and (not data.NightOnly or isNight())
 
-	if data.Hostile then
+	if aggressiveNow then
 		local target, distance = nearestPlayer(model.PrimaryPart.Position, data.AggroRange or 50)
 		if target then
 			local targetRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
@@ -211,7 +237,7 @@ local function tickMob(model, record, now)
 	if now >= record.NextWander then
 		record.NextWander = now + math.random(3, 7)
 		local angle = math.random() * math.pi * 2
-		local radius = math.random(12, 34)
+		local radius = math.random(12, data.Biome == "Forest" and 26 or 34)
 		record.WanderTarget = record.Home + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
 	end
 	hum:MoveTo(record.WanderTarget)
