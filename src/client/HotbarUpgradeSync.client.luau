@@ -14,6 +14,7 @@ local gui = player:WaitForChild("PlayerGui"):WaitForChild("SurvivalHUD")
 local hotbar = gui:WaitForChild("Hotbar")
 
 local currentProfile = nil
+local currentBuildCounts = {}
 local selectedItem = nil
 local orderedUnlocks = {}
 local lastSignature = nil
@@ -48,13 +49,42 @@ local function unlockSignature(profile)
 	return table.concat(parts, "|")
 end
 
+local function ensureCampfireStroke(button)
+	local existing = button:FindFirstChild("StarterCampfireStroke")
+	if existing and existing:IsA("UIStroke") then return existing end
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "StarterCampfireStroke"
+	stroke.Thickness = 2
+	stroke.Color = Color3.fromRGB(255, 178, 82)
+	stroke.Transparency = 1
+	stroke.Parent = button
+	return stroke
+end
+
 local function styleButtons()
+	local needsFirstCampfire = (currentBuildCounts.Campfire or 0) < 1
 	for _, child in hotbar:GetChildren() do
 		if child:IsA("TextButton") then
 			local active = child.Name == selectedItem
-			child.BackgroundTransparency = active and 0.08 or 0.28
-			child.BackgroundColor3 = active and Color3.fromRGB(238, 238, 241) or Color3.fromRGB(37, 37, 42)
-			child.TextColor3 = active and Color3.fromRGB(20, 20, 22) or Color3.fromRGB(245, 245, 245)
+			local campfireCallout = child.Name == "Campfire" and needsFirstCampfire
+			local campfireStroke = ensureCampfireStroke(child)
+
+			if active then
+				child.BackgroundTransparency = 0.06
+				child.BackgroundColor3 = Color3.fromRGB(238, 238, 241)
+				child.TextColor3 = Color3.fromRGB(20, 20, 22)
+				campfireStroke.Transparency = campfireCallout and 0.1 or 1
+			elseif campfireCallout then
+				child.BackgroundTransparency = 0.08
+				child.BackgroundColor3 = Color3.fromRGB(116, 67, 31)
+				child.TextColor3 = Color3.fromRGB(255, 238, 206)
+				campfireStroke.Transparency = 0.08
+			else
+				child.BackgroundTransparency = 0.28
+				child.BackgroundColor3 = Color3.fromRGB(37, 37, 42)
+				child.TextColor3 = Color3.fromRGB(245, 245, 245)
+				campfireStroke.Transparency = 1
+			end
 		end
 	end
 end
@@ -82,14 +112,21 @@ local function rebuild()
 				local button = Instance.new("TextButton")
 				button.Name = itemName
 				button.LayoutOrder = slot
-				button.Size = UDim2.fromOffset(UserInputService.TouchEnabled and 78 or 84, 40)
+				button.Size = UDim2.fromOffset(
+					itemName == "Campfire" and (UserInputService.TouchEnabled and 96 or 106) or (UserInputService.TouchEnabled and 78 or 84),
+					40
+				)
 				button.BackgroundColor3 = Color3.fromRGB(37, 37, 42)
 				button.BackgroundTransparency = 0.28
 				button.TextColor3 = Color3.fromRGB(245, 245, 245)
 				button.TextWrapped = true
 				button.Font = Enum.Font.GothamBold
-				button.TextSize = UserInputService.TouchEnabled and 9 or 10
-				button.Text = slot <= 9 and `{slot}  {string.upper(item.Label)}` or string.upper(item.Label)
+				button.TextSize = itemName == "Campfire" and (UserInputService.TouchEnabled and 8 or 9) or (UserInputService.TouchEnabled and 9 or 10)
+				if itemName == "Campfire" then
+					button.Text = `{slot}  CAMPFIRE\n14W + 8S`
+				else
+					button.Text = slot <= 9 and `{slot}  {string.upper(item.Label)}` or string.upper(item.Label)
+				end
 				button.Parent = hotbar
 				local corner = Instance.new("UICorner")
 				corner.CornerRadius = UDim.new(0, 8)
@@ -131,14 +168,18 @@ ContextActionService:BindActionAtPriority(
 stateChanged.OnClientEvent:Connect(function(payload)
 	if type(payload) ~= "table" then return end
 	if type(payload.Profile) == "table" then currentProfile = payload.Profile end
+	if type(payload.BuildCounts) == "table" then currentBuildCounts = payload.BuildCounts end
 	if type(payload.SelectedItem) == "string" then selectedItem = payload.SelectedItem end
+	-- Re-apply after the legacy controller has had a chance to update the same bar.
 	task.defer(rebuild)
+	task.delay(0.06, rebuild)
 end)
 
 task.spawn(function()
 	local ok, initial = pcall(function() return getState:InvokeServer() end)
 	if ok and type(initial) == "table" then
 		currentProfile = initial.Profile
+		currentBuildCounts = type(initial.BuildCounts) == "table" and initial.BuildCounts or {}
 		selectedItem = initial.SelectedItem
 		task.wait(0.12)
 		rebuild()
