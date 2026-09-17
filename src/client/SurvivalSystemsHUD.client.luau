@@ -56,6 +56,7 @@ needsPanel.Size = UDim2.fromOffset(250, 84)
 needsPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 23)
 needsPanel.BackgroundTransparency = 0.08
 needsPanel.Parent = gui
+needsPanel.Visible = false -- V3 focuses HUD attention on combat/run progression.
 corner(needsPanel, 11)
 stroke(needsPanel)
 
