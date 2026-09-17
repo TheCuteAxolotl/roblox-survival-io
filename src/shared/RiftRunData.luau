@@ -78,7 +78,7 @@ RiftRunData.Stages = {
 	[1] = { Label = "RIFT SWARM", Kind = "Wave", Enemy = "Riftling", BaseCount = 8, RewardGold = 70, RewardXP = 45, Essence = 55 },
 	[2] = { Label = "HUNTER PACK", Kind = "Wave", Enemy = "RiftHunter", BaseCount = 7, RewardGold = 95, RewardXP = 60, Essence = 70 },
 	[3] = { Label = "GLOOMFANG", Kind = "Boss", Enemy = "Gloomfang", BaseCount = 1, Adds = 4, RewardGold = 180, RewardXP = 110, Essence = 120 },
-	[4] = { Label = "CORRUPTION SURGE", Kind = "Wave", Enemy = "RiftBrute", BaseCount = 8, RewardGold = 130, RewardXP = 80, Essence = 85 },
+	[4] = { Label = "CORRUPTION STORM", Kind = "Survival", Enemy = "RiftHunter", Duration = 32, SpawnEvery = 3.5, RewardGold = 150, RewardXP = 90, Essence = 95 },
 	[5] = { Label = "ELITE HUNT", Kind = "Mixed", Enemy = "RiftHunter", BaseCount = 8, Brutes = 3, RewardGold = 175, RewardXP = 105, Essence = 100 },
 	[6] = { Label = "RIFT TYRANT", Kind = "Boss", Enemy = "RiftTyrant", BaseCount = 1, Adds = 6, RewardGold = 500, RewardXP = 320, Essence = 180 },
 }
