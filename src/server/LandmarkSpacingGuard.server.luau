@@ -8,6 +8,8 @@ if not world then return end
 
 local VILLAGE_FOOTPRINT = Vector3.new(78, 16, 82)
 local PADDING = 28
+local HUB_CENTER = Vector3.new(0, 0, -155)
+local HUB_FOOTPRINT = Vector3.new(150, 20, 120)
 
 local function isMajorLandmark(model)
 	if not model:IsA("Model") then return false end
@@ -26,6 +28,7 @@ local function overlaps(centerA, sizeA, centerB, sizeB)
 end
 
 local function clearForVillage(village, center)
+	if overlaps(center, VILLAGE_FOOTPRINT, HUB_CENTER, HUB_FOOTPRINT) then return false end
 	local half = Config.WorldSize / 2
 	if math.abs(center.X) + VILLAGE_FOOTPRINT.X / 2 + 18 > half then return false end
 	if math.abs(center.Z) + VILLAGE_FOOTPRINT.Z / 2 + 18 > half then return false end
