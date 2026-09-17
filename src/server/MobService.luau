@@ -22,11 +22,11 @@ local FOREST_HALF_X = 150
 local FOREST_HALF_Z = 125
 
 local SPECIAL_REGIONS = {
-	Highlands = { Center = Vector3.new(-720, 0, 650), HalfX = 170, HalfZ = 145 },
-	Dunes = { Center = Vector3.new(720, 0, 650), HalfX = 170, HalfZ = 145 },
-	Marsh = { Center = Vector3.new(-720, 0, -650), HalfX = 170, HalfZ = 145 },
-	Grove = { Center = Vector3.new(720, 0, -650), HalfX = 170, HalfZ = 145 },
-	Crystal = { Center = Vector3.new(690, 0, 610), HalfX = 105, HalfZ = 90 },
+	Highlands = { Center = Vector3.new(-980, 0, 850), HalfX = 210, HalfZ = 180 },
+	Dunes = { Center = Vector3.new(980, 0, 850), HalfX = 210, HalfZ = 180 },
+	Marsh = { Center = Vector3.new(-980, 0, -850), HalfX = 210, HalfZ = 180 },
+	Grove = { Center = Vector3.new(980, 0, -850), HalfX = 210, HalfZ = 180 },
+	Crystal = { Center = Vector3.new(0, 0, 980), HalfX = 150, HalfZ = 120 },
 }
 
 local function arena()
