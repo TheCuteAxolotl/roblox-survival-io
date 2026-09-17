@@ -35,13 +35,26 @@ local function getArena()
 	return Workspace:FindFirstChild("SurvivalArena")
 end
 
+local function buildMatchesLimit(requestedType, existingType)
+	local requested = ItemData.Items[requestedType]
+	local existing = ItemData.Items[existingType]
+	if not requested or not existing then return requestedType == existingType end
+	if requested.LimitGroup then
+		return existing.LimitGroup == requested.LimitGroup
+	end
+	return requestedType == existingType
+end
+
 function BuildService.CountOwned(player, buildType)
 	local arena = getArena()
 	if not arena then return 0 end
 	local count = 0
 	for _, child in arena:GetChildren() do
-		if child:IsA("Model") and child:GetAttribute("OwnerUserId") == player.UserId and child:GetAttribute("BuildType") == buildType then
-			count += 1
+		if child:IsA("Model") and child:GetAttribute("OwnerUserId") == player.UserId then
+			local existingType = child:GetAttribute("BuildType")
+			if type(existingType) == "string" and buildMatchesLimit(buildType, existingType) then
+				count += 1
+			end
 		end
 	end
 	return count
@@ -108,8 +121,9 @@ function BuildService.CanPlace(player, buildType, position, rotation)
 	return true
 end
 
-local function setupTrap(model, trigger, ownerUserId)
+local function setupDamageZone(model, trigger, ownerUserId, damage, cooldown, slowSeconds)
 	trigger.Touched:Connect(function(hit)
+		if not model.Parent then return end
 		local character = hit:FindFirstAncestorOfClass("Model")
 		local victim = character and Players:GetPlayerFromCharacter(character)
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -117,18 +131,55 @@ local function setupTrap(model, trigger, ownerUserId)
 
 		local key = `{model:GetDebugId()}:{victim.UserId}`
 		local now = os.clock()
-		if now - (trapCooldowns[key] or 0) < 2.5 then return end
+		if now - (trapCooldowns[key] or 0) < (cooldown or 1) then return end
 		trapCooldowns[key] = now
+		humanoid:TakeDamage(damage or 10)
 
-		humanoid:TakeDamage(18)
-		local oldSpeed = humanoid.WalkSpeed
-		humanoid.WalkSpeed = math.min(oldSpeed, 8)
-		task.delay(1.15, function()
-			if humanoid.Parent and humanoid.Health > 0 then
-				humanoid.WalkSpeed = math.max(humanoid.WalkSpeed, oldSpeed)
-			end
-		end)
+		if slowSeconds and slowSeconds > 0 then
+			local oldSpeed = humanoid.WalkSpeed
+			humanoid.WalkSpeed = math.min(oldSpeed, 8)
+			task.delay(slowSeconds, function()
+				if humanoid.Parent and humanoid.Health > 0 then
+					humanoid.WalkSpeed = math.max(humanoid.WalkSpeed, oldSpeed)
+				end
+			end)
+		end
 	end)
+end
+
+local function addSpikeCluster(model, position, count, radius, color, scale)
+	for i = 1, count do
+		local theta = math.rad((i - 1) * (360 / count))
+		local spike = Instance.new("WedgePart")
+		spike.Name = `Spike{i}`
+		spike.Size = Vector3.new(1.25 * scale, 3.1 * scale, 1.25 * scale)
+		spike.Anchored = true
+		spike.Material = Enum.Material.Wood
+		spike.Color = color
+		local p = Vector3.new(position.X + math.cos(theta) * radius, 1.45 * scale, position.Z + math.sin(theta) * radius)
+		spike.CFrame = CFrame.new(p) * CFrame.Angles(0, -theta + math.rad(90), 0)
+		spike.Parent = model
+	end
+end
+
+local function makeMill(model, position, buildType)
+	local item = ItemData.Items[buildType]
+	local tier = item and item.Tier or 1
+	local baseSize = tier == 1 and 5.5 or (buildType == "PowerMill" and 7 or 6.2)
+	local poleHeight = tier == 1 and 8 or (buildType == "PowerMill" and 10.5 or 9.2)
+	local base = makePart(model, "Base", Vector3.new(baseSize, 1, baseSize), Vector3.new(position.X, 0.5, position.Z), Color3.fromRGB(101, 76, 54), Enum.Material.WoodPlanks)
+	model.PrimaryPart = base
+	makePart(model, "Pole", Vector3.new(1.4, poleHeight, 1.4), Vector3.new(position.X, 0.8 + poleHeight / 2, position.Z), Color3.fromRGB(132, 91, 58), Enum.Material.Wood)
+	local hubY = poleHeight + 0.8
+	local hub = makePart(model, "Hub", Vector3.new(1.8, 1.8, 1.8), Vector3.new(position.X, hubY, position.Z - 0.9), Color3.fromRGB(92, 92, 96), Enum.Material.Metal)
+	hub.Shape = Enum.PartType.Ball
+	local bladeLength = tier == 1 and 5 or (buildType == "PowerMill" and 6.8 or 5.8)
+	for i = 0, 3 do
+		local blade = makePart(model, `Blade{i + 1}`, Vector3.new(0.65, bladeLength, 1), hub.Position, Color3.fromRGB(226, 219, 194), Enum.Material.WoodPlanks)
+		blade.CFrame = CFrame.new(hub.Position) * CFrame.Angles(0, 0, math.rad(i * 90)) * CFrame.new(0, bladeLength / 2, 0)
+		blade.CanCollide = false
+	end
+	model:SetAttribute("NextPassiveAt", os.clock() + (item.TickSeconds or 8))
 end
 
 function BuildService.PlaceBuild(player, buildType, position, rotation)
@@ -156,22 +207,17 @@ function BuildService.PlaceBuild(player, buildType, position, rotation)
 			seam.CFrame = CFrame.new(position.X, 10.2, position.Z) * CFrame.Angles(0, angle, 0) * CFrame.new(x, 0, 0)
 			seam.CanCollide = false
 		end
-	elseif buildType == "Spike" then
-		local base = makePart(model, "Base", Vector3.new(5.5, 0.7, 5.5), Vector3.new(position.X, 0.35, position.Z), Color3.fromRGB(92, 72, 54), Enum.Material.Wood)
+	elseif buildType == "Spike" or buildType == "GreaterSpikes" then
+		local scale = buildType == "GreaterSpikes" and 1.2 or 1
+		local size = buildType == "GreaterSpikes" and 6.5 or 5.5
+		local base = makePart(model, "Base", Vector3.new(size, 0.7, size), Vector3.new(position.X, 0.35, position.Z), Color3.fromRGB(92, 72, 54), Enum.Material.Wood)
 		model.PrimaryPart = base
-		for i, offset in {
-			Vector3.new(-1.5, 1.5, -1.5), Vector3.new(1.5, 1.5, -1.5), Vector3.new(-1.5, 1.5, 1.5), Vector3.new(1.5, 1.5, 1.5),
-		} do
-			local spike = Instance.new("WedgePart")
-			spike.Name = `Spike{i}`
-			spike.Size = Vector3.new(1.3, 3, 1.3)
-			spike.Position = position + offset
-			spike.Anchored = true
-			spike.Material = Enum.Material.Wood
-			spike.Color = Color3.fromRGB(114, 87, 62)
-			spike.CFrame = CFrame.new(spike.Position) * CFrame.Angles(0, math.rad((i - 1) * 90), 0)
-			spike.Parent = model
-		end
+		addSpikeCluster(model, position, buildType == "GreaterSpikes" and 8 or 4, buildType == "GreaterSpikes" and 2.25 or 1.8, buildType == "GreaterSpikes" and Color3.fromRGB(93, 78, 67) or Color3.fromRGB(114, 87, 62), scale)
+		local trigger = makePart(model, "DamageZone", Vector3.new(size - 0.3, 2, size - 0.3), Vector3.new(position.X, 1, position.Z), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
+		trigger.Transparency = 1
+		trigger.CanCollide = false
+		trigger.CanQuery = false
+		setupDamageZone(model, trigger, player.UserId, item.TouchDamage or 10, 0.9, nil)
 	elseif buildType == "BearTrap" then
 		local base = makePart(model, "TrapBase", Vector3.new(6, 0.35, 6), Vector3.new(position.X, 0.18, position.Z), Color3.fromRGB(87, 89, 94), Enum.Material.Metal)
 		model.PrimaryPart = base
@@ -191,18 +237,9 @@ function BuildService.PlaceBuild(player, buildType, position, rotation)
 		trigger.Transparency = 1
 		trigger.CanCollide = false
 		trigger.CanQuery = false
-		setupTrap(model, trigger, player.UserId)
-	elseif buildType == "Windmill" then
-		local base = makePart(model, "Base", Vector3.new(5.5, 1, 5.5), Vector3.new(position.X, 0.5, position.Z), Color3.fromRGB(101, 76, 54), Enum.Material.WoodPlanks)
-		model.PrimaryPart = base
-		makePart(model, "Pole", Vector3.new(1.4, 8, 1.4), Vector3.new(position.X, 4.8, position.Z), Color3.fromRGB(132, 91, 58), Enum.Material.Wood)
-		local hub = makePart(model, "Hub", Vector3.new(1.8, 1.8, 1.8), Vector3.new(position.X, 8.6, position.Z - 0.9), Color3.fromRGB(92, 92, 96), Enum.Material.Metal)
-		hub.Shape = Enum.PartType.Ball
-		for i = 0, 3 do
-			local blade = makePart(model, `Blade{i + 1}`, Vector3.new(0.65, 5, 1), hub.Position, Color3.fromRGB(226, 219, 194), Enum.Material.WoodPlanks)
-			blade.CFrame = CFrame.new(hub.Position) * CFrame.Angles(0, 0, math.rad(i * 90)) * CFrame.new(0, 2.5, 0)
-			blade.CanCollide = false
-		end
+		setupDamageZone(model, trigger, player.UserId, 18, 2.5, 1.15)
+	elseif buildType == "Windmill" or buildType == "RapidMill" or buildType == "PowerMill" then
+		makeMill(model, position, buildType)
 	elseif buildType == "Campfire" then
 		local base = makePart(model, "FireBase", Vector3.new(5.5, 0.5, 5.5), Vector3.new(position.X, 0.25, position.Z), Color3.fromRGB(94, 88, 82), Enum.Material.Slate)
 		model.PrimaryPart = base
@@ -219,6 +256,46 @@ function BuildService.PlaceBuild(player, buildType, position, rotation)
 		light.Brightness = 2
 		light.Color = Color3.fromRGB(255, 166, 88)
 		light.Parent = flame
+	elseif buildType == "HealingPad" then
+		local base = makePart(model, "HealingPad", Vector3.new(7, 0.6, 7), Vector3.new(position.X, 0.3, position.Z), Color3.fromRGB(78, 122, 96), Enum.Material.Metal)
+		model.PrimaryPart = base
+		local glow = makePart(model, "Glow", Vector3.new(5.4, 0.18, 5.4), Vector3.new(position.X, 0.7, position.Z), Color3.fromRGB(92, 240, 141), Enum.Material.Neon)
+		glow.CanCollide = false
+	elseif buildType == "Turret" then
+		local base = makePart(model, "TurretBase", Vector3.new(5.5, 1, 5.5), Vector3.new(position.X, 0.5, position.Z), Color3.fromRGB(91, 95, 104), Enum.Material.Metal)
+		model.PrimaryPart = base
+		makePart(model, "Stand", Vector3.new(1.4, 4.2, 1.4), Vector3.new(position.X, 3, position.Z), Color3.fromRGB(106, 110, 120), Enum.Material.Metal)
+		local head = makePart(model, "TurretHead", Vector3.new(3.3, 2, 3.3), Vector3.new(position.X, 5.4, position.Z), Color3.fromRGB(126, 130, 140), Enum.Material.Metal)
+		head.Shape = Enum.PartType.Ball
+		makePart(model, "Barrel", Vector3.new(0.65, 0.65, 4), Vector3.new(position.X, 5.4, position.Z - 2.7), Color3.fromRGB(71, 74, 82), Enum.Material.Metal)
+		model:SetAttribute("NextAttackAt", 0)
+	elseif buildType == "Mine" then
+		local mine = makePart(model, "Mine", Vector3.new(4.6, 0.6, 4.6), Vector3.new(position.X, 0.3, position.Z), Color3.fromRGB(70, 72, 76), Enum.Material.Metal)
+		mine.Shape = Enum.PartType.Cylinder
+		mine.Orientation = Vector3.new(0, 0, 90)
+		model.PrimaryPart = mine
+		local trigger = makePart(model, "MineTrigger", Vector3.new(5, 2, 5), Vector3.new(position.X, 1, position.Z), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
+		trigger.Transparency = 1
+		trigger.CanCollide = false
+		trigger.CanQuery = false
+		local armed = true
+		trigger.Touched:Connect(function(hit)
+			if not armed or not model.Parent then return end
+			local character = hit:FindFirstAncestorOfClass("Model")
+			local victim = character and Players:GetPlayerFromCharacter(character)
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if not victim or victim.UserId == player.UserId or not humanoid or humanoid.Health <= 0 then return end
+			armed = false
+			humanoid:TakeDamage(item.MineDamage or 50)
+			model:Destroy()
+		end)
+	elseif buildType == "Sapling" then
+		local trunk = makePart(model, "Trunk", Vector3.new(1.2, 4.8, 1.2), Vector3.new(position.X, 2.4, position.Z), Color3.fromRGB(121, 84, 52), Enum.Material.Wood)
+		model.PrimaryPart = trunk
+		local crown = makePart(model, "Crown", Vector3.new(4.2, 4.2, 4.2), Vector3.new(position.X, 5.8, position.Z), Color3.fromRGB(79, 151, 83), Enum.Material.Grass)
+		crown.Shape = Enum.PartType.Ball
+		crown.CanCollide = false
+		model:SetAttribute("NextPassiveAt", os.clock() + (item.TickSeconds or 8))
 	else
 		model:Destroy()
 		return nil, "That building is not implemented yet."
