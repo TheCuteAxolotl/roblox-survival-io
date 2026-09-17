@@ -63,18 +63,233 @@ local function weld(root, part)
 	weldConstraint.Parent = part
 end
 
-local function makeBodyPart(model, root, name, size, offset, color, material)
+local function visualPart(model, root, name, size, relativeCf, color, material, shape)
 	local p = Instance.new("Part")
 	p.Name = name
 	p.Size = size
 	p.Color = color
 	p.Material = material or Enum.Material.SmoothPlastic
 	p.CanCollide = false
+	p.CanTouch = false
 	p.Massless = true
-	p.CFrame = root.CFrame * CFrame.new(offset)
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.CFrame = root.CFrame * relativeCf
+	if shape then p.Shape = shape end
 	p.Parent = model
 	weld(root, p)
 	return p
+end
+
+local function ellipsoid(model, root, name, size, relativeCf, color, material)
+	local p = visualPart(model, root, name, size, relativeCf, color, material)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Scale = Vector3.new(1, 1, 1)
+	mesh.Parent = p
+	return p
+end
+
+local function wedge(model, root, name, size, relativeCf, color, material)
+	local p = Instance.new("WedgePart")
+	p.Name = name
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.CanCollide = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CFrame = root.CFrame * relativeCf
+	p.Parent = model
+	weld(root, p)
+	return p
+end
+
+local function cylinder(model, root, name, length, thickness, relativeCf, color, material)
+	return visualPart(model, root, name, Vector3.new(length, thickness, thickness), relativeCf, color, material, Enum.PartType.Cylinder)
+end
+
+local function addEyes(model, root, x, y, z, scale, color)
+	for _, side in { -1, 1 } do
+		ellipsoid(model, root, "Eye", Vector3.new(0.30, 0.30, 0.18) * scale, CFrame.new(side * x * scale, y * scale, z * scale), color or Color3.fromRGB(24, 24, 26), Enum.Material.Neon)
+	end
+end
+
+local function addFourLegs(model, root, scale, color, positions, thickness, length)
+	local legThickness = thickness or 0.55
+	local legLength = length or 2.2
+	for i, offset in positions do
+		cylinder(
+			model,
+			root,
+			`Leg{i}`,
+			legLength * scale,
+			legThickness * scale,
+			CFrame.new(offset.X * scale, offset.Y * scale, offset.Z * scale) * CFrame.Angles(0, 0, math.rad(90)),
+			color
+		)
+	end
+end
+
+local function buildCanine(model, root, color, scale, isDire)
+	local dark = color:Lerp(Color3.new(0, 0, 0), isDire and 0.28 or 0.18)
+	local light = color:Lerp(Color3.new(1, 1, 1), 0.16)
+	ellipsoid(model, root, "Body", Vector3.new(3.2, 2.25, 5.0) * scale, CFrame.new(0, 0.45 * scale, 0), color)
+	ellipsoid(model, root, "Chest", Vector3.new(3.0, 2.8, 2.7) * scale, CFrame.new(0, 0.72 * scale, -1.35 * scale), light)
+	ellipsoid(model, root, "Head", Vector3.new(2.4, 2.15, 2.55) * scale, CFrame.new(0, 1.15 * scale, -3.0 * scale), color)
+	ellipsoid(model, root, "Muzzle", Vector3.new(1.45, 1.0, 1.75) * scale, CFrame.new(0, 0.78 * scale, -4.35 * scale), light)
+	ellipsoid(model, root, "Nose", Vector3.new(0.72, 0.52, 0.42) * scale, CFrame.new(0, 0.86 * scale, -5.12 * scale), Color3.fromRGB(24, 24, 27))
+	addEyes(model, root, 0.72, 1.55, -4.0, scale, isDire and Color3.fromRGB(244, 184, 72) or Color3.fromRGB(34, 34, 36))
+	for _, side in { -1, 1 } do
+		wedge(model, root, "Ear", Vector3.new(0.85, 1.35, 0.65) * scale, CFrame.new(side * 0.8 * scale, 2.45 * scale, -3.0 * scale) * CFrame.Angles(0, math.rad(side * 8), math.rad(side * 8)), dark)
+	end
+	addFourLegs(model, root, scale, dark, {
+		Vector3.new(-1.0, -0.8, -1.55), Vector3.new(1.0, -0.8, -1.55),
+		Vector3.new(-1.0, -0.8, 1.55), Vector3.new(1.0, -0.8, 1.55),
+	}, 0.5, 2.35)
+	cylinder(model, root, "TailA", 2.4 * scale, 0.55 * scale, CFrame.new(0, 0.95 * scale, 3.05 * scale) * CFrame.Angles(0, math.rad(68), math.rad(-8)), dark)
+	cylinder(model, root, "TailB", 1.65 * scale, 0.42 * scale, CFrame.new(0.85 * scale, 1.25 * scale, 4.0 * scale) * CFrame.Angles(0, math.rad(52), math.rad(-10)), dark)
+end
+
+local function buildDeer(model, root, color, scale)
+	local cream = Color3.fromRGB(221, 191, 151)
+	local antler = Color3.fromRGB(99, 73, 50)
+	ellipsoid(model, root, "Body", Vector3.new(3.0, 2.2, 4.8) * scale, CFrame.new(0, 0.55 * scale, 0.25 * scale), color)
+	cylinder(model, root, "Neck", 2.9 * scale, 1.15 * scale, CFrame.new(0, 1.55 * scale, -2.0 * scale) * CFrame.Angles(0, 0, math.rad(64)), color)
+	ellipsoid(model, root, "Head", Vector3.new(1.85, 1.8, 2.45) * scale, CFrame.new(0, 2.55 * scale, -3.0 * scale), color)
+	ellipsoid(model, root, "Muzzle", Vector3.new(1.25, 0.9, 1.35) * scale, CFrame.new(0, 2.15 * scale, -4.25 * scale), cream)
+	addEyes(model, root, 0.55, 2.88, -3.85, scale)
+	for _, side in { -1, 1 } do
+		wedge(model, root, "Ear", Vector3.new(0.75, 1.3, 0.5) * scale, CFrame.new(side * 0.9 * scale, 3.55 * scale, -3.0 * scale) * CFrame.Angles(0, math.rad(side * 28), math.rad(side * 22)), color)
+		cylinder(model, root, "AntlerStem", 2.0 * scale, 0.24 * scale, CFrame.new(side * 0.55 * scale, 4.2 * scale, -2.8 * scale) * CFrame.Angles(0, 0, math.rad(68)), antler)
+		cylinder(model, root, "AntlerBranch", 1.25 * scale, 0.18 * scale, CFrame.new(side * 0.95 * scale, 4.7 * scale, -2.55 * scale) * CFrame.Angles(math.rad(24), 0, math.rad(side * 38)), antler)
+	end
+	addFourLegs(model, root, scale, color:Lerp(Color3.new(0, 0, 0), 0.08), {
+		Vector3.new(-0.9, -0.85, -1.45), Vector3.new(0.9, -0.85, -1.45),
+		Vector3.new(-0.9, -0.85, 1.55), Vector3.new(0.9, -0.85, 1.55),
+	}, 0.38, 2.8)
+	ellipsoid(model, root, "Tail", Vector3.new(0.7, 0.9, 1.0) * scale, CFrame.new(0, 1.0 * scale, 2.85 * scale) * CFrame.Angles(math.rad(-22), 0, 0), cream)
+end
+
+local function buildCattle(model, root, color, scale)
+	local muzzle = Color3.fromRGB(196, 166, 137)
+	local horn = Color3.fromRGB(226, 215, 181)
+	local dark = color:Lerp(Color3.new(0, 0, 0), 0.16)
+	ellipsoid(model, root, "Body", Vector3.new(4.2, 3.2, 5.8) * scale, CFrame.new(0, 0.7 * scale, 0.3 * scale), color)
+	ellipsoid(model, root, "Shoulders", Vector3.new(4.1, 3.5, 3.0) * scale, CFrame.new(0, 0.9 * scale, -1.5 * scale), dark)
+	ellipsoid(model, root, "Head", Vector3.new(3.0, 2.5, 2.8) * scale, CFrame.new(0, 1.45 * scale, -3.3 * scale), color)
+	ellipsoid(model, root, "Muzzle", Vector3.new(2.2, 1.35, 1.45) * scale, CFrame.new(0, 0.95 * scale, -4.7 * scale), muzzle)
+	addEyes(model, root, 0.92, 1.82, -4.05, scale)
+	for _, side in { -1, 1 } do
+		cylinder(model, root, "Horn", 1.8 * scale, 0.30 * scale, CFrame.new(side * 1.55 * scale, 2.6 * scale, -3.15 * scale) * CFrame.Angles(0, math.rad(side * 10), math.rad(side * 18)), horn)
+		wedge(model, root, "Ear", Vector3.new(1.0, 0.65, 0.8) * scale, CFrame.new(side * 1.65 * scale, 2.15 * scale, -3.4 * scale) * CFrame.Angles(0, math.rad(side * 25), 0), color)
+	end
+	addFourLegs(model, root, scale, dark, {
+		Vector3.new(-1.35, -1.0, -1.75), Vector3.new(1.35, -1.0, -1.75),
+		Vector3.new(-1.35, -1.0, 1.85), Vector3.new(1.35, -1.0, 1.85),
+	}, 0.72, 2.7)
+	cylinder(model, root, "Tail", 2.5 * scale, 0.26 * scale, CFrame.new(0, 0.9 * scale, 3.65 * scale) * CFrame.Angles(0, math.rad(90), math.rad(18)), dark)
+	ellipsoid(model, root, "TailTuft", Vector3.new(0.65, 0.65, 0.8) * scale, CFrame.new(1.05 * scale, 0.45 * scale, 4.0 * scale), dark)
+end
+
+local function buildBoar(model, root, color, scale)
+	local dark = color:Lerp(Color3.new(0, 0, 0), 0.2)
+	local tusk = Color3.fromRGB(235, 224, 194)
+	ellipsoid(model, root, "Body", Vector3.new(3.8, 2.8, 5.2) * scale, CFrame.new(0, 0.25 * scale, 0.3 * scale), color)
+	ellipsoid(model, root, "Shoulders", Vector3.new(3.8, 3.1, 2.9) * scale, CFrame.new(0, 0.45 * scale, -1.5 * scale), dark)
+	ellipsoid(model, root, "Head", Vector3.new(2.7, 2.2, 2.7) * scale, CFrame.new(0, 0.65 * scale, -3.0 * scale), color)
+	ellipsoid(model, root, "Snout", Vector3.new(1.9, 1.2, 1.45) * scale, CFrame.new(0, 0.25 * scale, -4.45 * scale), Color3.fromRGB(116, 79, 68))
+	ellipsoid(model, root, "Nose", Vector3.new(1.35, 0.8, 0.38) * scale, CFrame.new(0, 0.28 * scale, -5.15 * scale), Color3.fromRGB(50, 43, 42))
+	addEyes(model, root, 0.75, 1.0, -3.9, scale)
+	for _, side in { -1, 1 } do
+		wedge(model, root, "Ear", Vector3.new(0.85, 1.0, 0.65) * scale, CFrame.new(side * 0.9 * scale, 1.7 * scale, -2.9 * scale) * CFrame.Angles(0, 0, math.rad(side * 18)), dark)
+		wedge(model, root, "Tusk", Vector3.new(0.35, 0.9, 0.45) * scale, CFrame.new(side * 0.85 * scale, 0.0, -4.8 * scale) * CFrame.Angles(math.rad(-25), 0, math.rad(side * 16)), tusk)
+	end
+	addFourLegs(model, root, scale, dark, {
+		Vector3.new(-1.1, -1.05, -1.35), Vector3.new(1.1, -1.05, -1.35),
+		Vector3.new(-1.1, -1.05, 1.45), Vector3.new(1.1, -1.05, 1.45),
+	}, 0.62, 1.9)
+end
+
+local function buildBear(model, root, color, scale)
+	local muzzle = color:Lerp(Color3.new(1, 1, 1), 0.18)
+	local dark = color:Lerp(Color3.new(0, 0, 0), 0.18)
+	ellipsoid(model, root, "Body", Vector3.new(4.6, 3.8, 5.5) * scale, CFrame.new(0, 0.65 * scale, 0.4 * scale), color)
+	ellipsoid(model, root, "Chest", Vector3.new(4.3, 4.1, 3.2) * scale, CFrame.new(0, 0.9 * scale, -1.5 * scale), color)
+	ellipsoid(model, root, "Head", Vector3.new(3.2, 3.0, 3.1) * scale, CFrame.new(0, 1.75 * scale, -3.15 * scale), color)
+	ellipsoid(model, root, "Muzzle", Vector3.new(1.8, 1.2, 1.5) * scale, CFrame.new(0, 1.25 * scale, -4.65 * scale), muzzle)
+	ellipsoid(model, root, "Nose", Vector3.new(0.9, 0.58, 0.42) * scale, CFrame.new(0, 1.38 * scale, -5.35 * scale), Color3.fromRGB(28, 28, 29))
+	addEyes(model, root, 0.85, 2.25, -4.15, scale)
+	for _, side in { -1, 1 } do
+		ellipsoid(model, root, "Ear", Vector3.new(0.95, 0.95, 0.55) * scale, CFrame.new(side * 1.05 * scale, 3.15 * scale, -3.0 * scale), dark)
+	end
+	addFourLegs(model, root, scale, dark, {
+		Vector3.new(-1.35, -1.0, -1.4), Vector3.new(1.35, -1.0, -1.4),
+		Vector3.new(-1.35, -1.0, 1.7), Vector3.new(1.35, -1.0, 1.7),
+	}, 0.85, 2.25)
+	ellipsoid(model, root, "Tail", Vector3.new(0.9, 0.9, 0.9) * scale, CFrame.new(0, 1.0 * scale, 3.35 * scale), dark)
+end
+
+local function buildSpider(model, root, color, scale, brood)
+	local abdomenColor = color:Lerp(Color3.new(0, 0, 0), brood and 0.12 or 0.06)
+	ellipsoid(model, root, "Abdomen", Vector3.new(3.2, 1.8, 3.8) * scale, CFrame.new(0, 0.3 * scale, 1.3 * scale), abdomenColor)
+	ellipsoid(model, root, "Thorax", Vector3.new(2.3, 1.5, 2.4) * scale, CFrame.new(0, 0.2 * scale, -1.2 * scale), color)
+	ellipsoid(model, root, "Head", Vector3.new(1.65, 1.1, 1.5) * scale, CFrame.new(0, 0.15 * scale, -2.6 * scale), color)
+	for _, side in { -1, 1 } do
+		for i = 1, 4 do
+			local z = (i - 2.5) * 0.9
+			local angle = math.rad(side * (18 + (i - 1) * 8))
+			cylinder(model, root, "LegUpper", 2.3 * scale, 0.26 * scale, CFrame.new(side * 1.7 * scale, 0.05, z * scale) * CFrame.Angles(0, angle, 0), color)
+			cylinder(model, root, "LegLower", 2.0 * scale, 0.22 * scale, CFrame.new(side * 3.05 * scale, -0.4 * scale, (z + (i - 2.5) * 0.25) * scale) * CFrame.Angles(0, angle, math.rad(side * 18)), color)
+		end
+	end
+	for _, side in { -1, 1 } do
+		for row = 0, 1 do
+			ellipsoid(model, root, "Eye", Vector3.new(0.28, 0.28, 0.2) * scale, CFrame.new(side * (0.32 + row * 0.28) * scale, (0.42 - row * 0.18) * scale, -3.34 * scale), brood and Color3.fromRGB(129, 238, 174) or Color3.fromRGB(226, 72, 72), Enum.Material.Neon)
+		end
+	end
+end
+
+local function buildScorpion(model, root, color, scale)
+	local dark = color:Lerp(Color3.new(0, 0, 0), 0.2)
+	ellipsoid(model, root, "Body", Vector3.new(2.5, 1.35, 3.5) * scale, CFrame.new(0, 0.15 * scale, 0.2 * scale), color)
+	ellipsoid(model, root, "Head", Vector3.new(2.1, 1.1, 1.8) * scale, CFrame.new(0, 0.1 * scale, -2.2 * scale), dark)
+	for _, side in { -1, 1 } do
+		for i = 1, 4 do
+			local z = (i - 2.4) * 0.72
+			cylinder(model, root, "Leg", 1.8 * scale, 0.22 * scale, CFrame.new(side * 1.55 * scale, -0.2 * scale, z * scale) * CFrame.Angles(0, math.rad(side * (20 + i * 7)), math.rad(side * 10)), color)
+		end
+		cylinder(model, root, "ClawArm", 2.0 * scale, 0.34 * scale, CFrame.new(side * 1.55 * scale, 0.15 * scale, -2.25 * scale) * CFrame.Angles(0, math.rad(side * 34), 0), dark)
+		ellipsoid(model, root, "Claw", Vector3.new(1.2, 0.7, 1.5) * scale, CFrame.new(side * 2.55 * scale, 0.1 * scale, -3.0 * scale), color)
+	end
+	for i = 1, 4 do
+		ellipsoid(model, root, "TailSegment", Vector3.new(0.85, 0.85, 1.15) * scale, CFrame.new(0, (0.45 + i * 0.55) * scale, (2.0 + i * 0.72) * scale) * CFrame.Angles(math.rad(12 * i), 0, 0), dark)
+	end
+	wedge(model, root, "Stinger", Vector3.new(0.7, 1.3, 0.8) * scale, CFrame.new(0, 3.1 * scale, 5.05 * scale) * CFrame.Angles(math.rad(125), 0, 0), Color3.fromRGB(60, 48, 39))
+	addEyes(model, root, 0.45, 0.42, -3.0, scale, Color3.fromRGB(246, 165, 63))
+end
+
+local function buildMobVisual(model, root, mobName, data)
+	local scale = data.Scale or 1
+	local color = data.Color
+	if mobName == "Wolf" or mobName == "SnowWolf" or mobName == "DireWolf" then
+		buildCanine(model, root, color, scale, mobName == "DireWolf")
+	elseif mobName == "Deer" then
+		buildDeer(model, root, color, scale)
+	elseif mobName == "WildCattle" then
+		buildCattle(model, root, color, scale)
+	elseif mobName == "Boar" then
+		buildBoar(model, root, color, scale)
+	elseif mobName == "SnowBear" or mobName == "ForestBear" then
+		buildBear(model, root, color, scale)
+	elseif data.Archetype == "Spider" then
+		buildSpider(model, root, color, scale, mobName == "BroodSpider")
+	elseif data.Archetype == "Scorpion" then
+		buildScorpion(model, root, color, scale)
+	else
+		buildCanine(model, root, color, scale, false)
+	end
+	model:SetAttribute("VisualStyle", "LowPolyAnimalV2")
 end
 
 local function nearestPlayer(position, range)
@@ -126,7 +341,7 @@ local function spawnMob(mobName)
 
 	local root = Instance.new("Part")
 	root.Name = "HumanoidRootPart"
-	root.Size = Vector3.new(3.2, 2.4, 4.2)
+	root.Size = Vector3.new(3.2, 2.4, 4.2) * math.max(1, data.Scale or 1)
 	root.CFrame = CFrame.new(spawnPosition)
 	root.Transparency = 1
 	root.CanCollide = true
@@ -134,26 +349,11 @@ local function spawnMob(mobName)
 	model.PrimaryPart = root
 	pcall(function() root:SetNetworkOwner(nil) end)
 
-	local archetype = data.Archetype or mobName
-	local bodyScale = data.Scale or 1
-	local body = makeBodyPart(model, root, "Body", Vector3.new(3.2, 2.2, 4.2) * bodyScale, Vector3.new(0, 0.4, 0), data.Color, Enum.Material.SmoothPlastic)
-	body.CanCollide = false
-	if archetype == "Spider" or archetype == "Scorpion" then
-		body.Shape = Enum.PartType.Ball
-		for side = -1, 1, 2 do
-			for i = 1, 4 do
-				local leg = makeBodyPart(model, root, `Leg{side}_{i}`, Vector3.new(2.3, 0.25, 0.25) * bodyScale, Vector3.new(side * 1.6, 0.1, (i - 2.5) * 0.7) * bodyScale, data.Color, Enum.Material.SmoothPlastic)
-				leg.Orientation = Vector3.new(0, 0, side * 20)
-			end
-		end
-	else
-		makeBodyPart(model, root, "Head", Vector3.new(2.1, 2, 2.2) * bodyScale, Vector3.new(0, 0.75 * bodyScale, -2.2 * bodyScale), data.Color, Enum.Material.SmoothPlastic)
-		for _, offset in { Vector3.new(-1, -1.2, -1.2), Vector3.new(1, -1.2, -1.2), Vector3.new(-1, -1.2, 1.3), Vector3.new(1, -1.2, 1.3) } do
-			makeBodyPart(model, root, "Leg", Vector3.new(0.65, 2.4, 0.65) * bodyScale, offset * bodyScale, data.Color, Enum.Material.SmoothPlastic)
-		end
-	end
+	buildMobVisual(model, root, mobName, data)
 
 	local hum = Instance.new("Humanoid")
+	hum.RequiresNeck = false
+	hum.BreakJointsOnDeath = false
 	hum.MaxHealth = data.Health
 	hum.Health = data.Health
 	hum.WalkSpeed = data.WalkSpeed
