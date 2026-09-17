@@ -57,7 +57,9 @@ local function selectedShield(player)
 end
 
 local function outgoingMultiplier(player)
-	return PlayerService.GetHatEffect(player, "DamageMultiplier", 1) * math.max(0, player:GetAttribute("CloakDamageMultiplier") or 1)
+	return PlayerService.GetHatEffect(player, "DamageMultiplier", 1)
+		* math.max(0, player:GetAttribute("CloakDamageMultiplier") or 1)
+		* math.max(0.1, player:GetAttribute("RiftDamageMultiplier") or 1)
 end
 
 local function incomingMultiplier(player)
@@ -147,6 +149,7 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 end)
 
 directional.OnServerEvent:Connect(function(player)
+	if player:GetAttribute("RiftDowned") == true then return end
 	local _, weapon = currentWeapon(player)
 	if not weapon or weapon.Ranged or weapon.Kind == "Shield" then return end
 	if weapon.CanAttack == false and weapon.CanGather == false then return end
@@ -193,6 +196,9 @@ directional.OnServerEvent:Connect(function(player)
 					if isMob then
 						local amount = weapon.PercentHealthDamage and targetHum.MaxHealth * weapon.PercentHealthDamage or (weapon.Damage or 0)
 						amount *= outgoingMultiplier(player)
+						if mobModel:GetAttribute("RiftBoss") == true then
+							amount *= math.max(0.1, player:GetAttribute("RiftBossDamageMultiplier") or 1)
+						end
 						if amount > 0 then MobService.Damage(mobModel, player, math.floor(amount + 0.5)) damaged += 1 hitCount += 1 end
 					end
 				end
