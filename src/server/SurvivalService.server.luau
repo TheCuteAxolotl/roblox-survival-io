@@ -701,6 +701,7 @@ task.spawn(function()
 				+ PlayerService.GetHatEffect(player, "WalkSpeedBonus", 0)
 				+ (player:GetAttribute("CloakWalkBonus") or 0)
 				+ (player:GetAttribute("RiftSpeedBonus") or 0)
+				+ (player:GetAttribute("WorldSpeedBonus") or 0)
 				- (player:GetAttribute("ArmorWalkPenalty") or 0)
 			local inSnow = biomeAt(root.Position) == "Snow"
 			local snowImmune = PlayerService.GetHatEffect(player, "SnowSpeedImmunity", false) == true or player:GetAttribute("ArmorSnowResist") == true or now < state.Buffs.ColdResistUntil
