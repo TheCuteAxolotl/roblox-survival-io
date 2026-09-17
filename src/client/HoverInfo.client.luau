@@ -18,7 +18,7 @@ local hoveredItem = nil
 
 local tooltip = Instance.new("Frame")
 tooltip.Name = "ItemHoverTooltip"
-tooltip.Size = UDim2.fromOffset(290, 128)
+tooltip.Size = UDim2.fromOffset(310, 154)
 tooltip.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
 tooltip.BackgroundTransparency = 0.04
 tooltip.Visible = false
@@ -79,6 +79,17 @@ local function affordableCount(cost)
 	return result == math.huge and 0 or result
 end
 
+local function effectText(item)
+	local effects = {}
+	if item.GoldPerTick then table.insert(effects, `Gold: +{item.GoldPerTick} every {item.TickSeconds or 8}s`) end
+	if item.WoodPerTick then table.insert(effects, `Wood: +{item.WoodPerTick} every {item.TickSeconds or 8}s`) end
+	if item.HealPerSecond then table.insert(effects, `Healing: +{item.HealPerSecond} HP/s within {item.EffectRange or 16} studs`) end
+	if item.TurretDamage then table.insert(effects, `Turret: {item.TurretDamage} damage • {item.TurretRange or 0} stud range`) end
+	if item.MineDamage then table.insert(effects, `Mine hit: {item.MineDamage} damage`) end
+	if item.TouchDamage then table.insert(effects, `Contact: {item.TouchDamage} damage`) end
+	return table.concat(effects, "\n")
+end
+
 local function refreshTooltip()
 	if not hoveredItem then return end
 	local item = ItemData.Items[hoveredItem]
@@ -87,13 +98,15 @@ local function refreshTooltip()
 	if item.Category == "Build" then
 		local placed = buildCounts[hoveredItem] or 0
 		local limit = item.BuildLimit or 0
+		local effect = effectText(item)
 		body.Text = string.format(
-			"%s\n\nCost: %s\nPlaced: %d / %s   •   Can afford now: %d",
+			"%s\nCost: %s\nPlaced: %d / %s   •   Can afford: %d%s",
 			item.Description or "",
 			formatCost(item.Cost),
 			placed,
 			limit > 0 and tostring(limit) or "∞",
-			affordableCount(item.Cost)
+			affordableCount(item.Cost),
+			effect ~= "" and `\n{effect}` or ""
 		)
 	elseif item.Category == "Weapon" then
 		body.Text = string.format(
