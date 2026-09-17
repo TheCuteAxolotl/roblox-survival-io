@@ -34,8 +34,8 @@ CraftingData.Recipes = {
 	CampfireKit = { Label = "Packed Campfire", Category = "Building", Rarity = "Common", Station = "Hand", Ingredients = { Resources = { Wood = 14, Stone = 8 } }, Result = { Item = "CampfireKit", Amount = 1 } },
 
 	-- FOOD: active recovery, never passive regeneration.
-	BoneBroth = { Label = "Bone Broth", Category = "Food", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Items = { Bone = 1, Food = 2, Herb = 1 } }, Result = { Item = "BoneBroth", Amount = 1 } },
-	TrailRation = { Label = "Trail Ration", Category = "Food", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Items = { Food = 2, Wheat = 2 } }, Result = { Item = "TrailRation", Amount = 1 } },
+	BoneBroth = { Label = "Bone Broth", Category = "Food", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Resources = { Food = 2 }, Items = { Bone = 1, Herb = 1 } }, Result = { Item = "BoneBroth", Amount = 1 } },
+	TrailRation = { Label = "Trail Ration", Category = "Food", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Resources = { Food = 2 }, Items = { Wheat = 2 } }, Result = { Item = "TrailRation", Amount = 1 } },
 	HerbalTea = { Label = "Herbal Tea", Category = "Food", Rarity = "Uncommon", Station = "Campfire", Ingredients = { Items = { Herb = 2, WaterFlask = 1 } }, Result = { Item = "HerbalTea", Amount = 1 } },
 
 	-- MEDICAL
@@ -59,7 +59,7 @@ CraftingData.Recipes = {
 	-- TRAPS / FARMING
 	SpikeTrapKit = { Label = "Spike Trap Kit", Category = "Traps", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Resources = { Wood = 18, Stone = 10 }, Items = { Rope = 1 } }, Result = { Item = "SpikeTrapKit", Amount = 1 } },
 	WebTrapKit = { Label = "Web Trap Kit", Category = "Traps", Rarity = "Rare", Station = "Workbench", Ingredients = { Resources = { Wood = 12 }, Items = { Web = 5, ReinforcedRope = 1 } }, Result = { Item = "WebTrapKit", Amount = 1 } },
-	Fertilizer = { Label = "Fertilizer", Category = "Farming", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Items = { Food = 1, Wheat = 3, Herb = 1 } }, Result = { Item = "Fertilizer", Amount = 2 } },
+	Fertilizer = { Label = "Fertilizer", Category = "Farming", Rarity = "Uncommon", Station = "Workbench", Ingredients = { Resources = { Food = 1 }, Items = { Wheat = 3, Herb = 1 } }, Result = { Item = "Fertilizer", Amount = 2 } },
 	WheatSeeds = { Label = "Wheat Seeds", Category = "Farming", Rarity = "Common", Station = "Workbench", Ingredients = { Items = { Wheat = 2 } }, Result = { Item = "WheatSeeds", Amount = 3 } },
 
 	-- OPTIONAL POWER CONSUMABLES
