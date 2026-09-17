@@ -14,23 +14,20 @@ local hotbar = gui:WaitForChild("Hotbar")
 local currentProfile = nil
 local selectedItem = nil
 
-local weaponNames = {
-	Axe = true,
-	Sword = true,
-	Pickaxe = true,
-	Spear = true,
-	WarHammer = true,
-	Katana = true,
-	BattleAxe = true,
+local primaryNames = {
+	Axe = true, Sword = true, Pickaxe = true, Spear = true, Daggers = true,
+	Bat = true, Stick = true, Katana = true, BattleAxe = true,
 }
 
-local millNames = {
-	Windmill = true,
-	RapidMill = true,
-	PowerMill = true,
+local secondaryNames = {
+	WoodenShield = true, StoneShield = true, HuntingBow = true, GreatHammer = true,
+	McGrabby = true, Shotgun = true, RepeaterCrossbow = true, Musket = true,
 }
 
-local weaponPriority = { "Katana", "BattleAxe", "Spear", "WarHammer", "Sword", "Pickaxe", "Axe" }
+local millNames = { Windmill = true, RapidMill = true, PowerMill = true }
+
+local primaryPriority = { "Katana", "BattleAxe", "Sword", "Pickaxe", "Spear", "Daggers", "Bat", "Stick", "Axe" }
+local secondaryPriority = { "Musket", "Shotgun", "RepeaterCrossbow", "WoodenShield", "StoneShield", "HuntingBow", "GreatHammer", "McGrabby" }
 local millPriority = { "RapidMill", "PowerMill", "Windmill" }
 
 local function firstUnlocked(unlocks, priority)
@@ -71,20 +68,14 @@ local function syncGroup(group, priority)
 	if not activeItem then return nil end
 	local button = findGroupButton(group)
 	if not button then return activeItem end
-
-	local oldName = button.Name
-	if oldName ~= activeItem then
-		wireReplacementButton(button, activeItem)
-		labelButton(button, activeItem)
-	else
-		button:SetAttribute("ProgressionSelectTarget", activeItem)
-	end
+	wireReplacementButton(button, activeItem)
+	if button.Name ~= activeItem then labelButton(button, activeItem) end
 	return activeItem
 end
 
 local function styleSelection()
 	for _, child in hotbar:GetChildren() do
-		if child:IsA("TextButton") and (weaponNames[child.Name] or millNames[child.Name]) then
+		if child:IsA("TextButton") then
 			local active = child.Name == selectedItem
 			child.BackgroundColor3 = active and Color3.fromRGB(238, 238, 241) or Color3.fromRGB(42, 42, 46)
 			child.TextColor3 = active and Color3.fromRGB(20, 20, 22) or Color3.fromRGB(245, 245, 245)
@@ -94,11 +85,14 @@ end
 
 local function syncHotbar()
 	if not currentProfile or type(currentProfile.Unlocks) ~= "table" then return end
-	local activeWeapon = syncGroup(weaponNames, weaponPriority)
+	local activePrimary = syncGroup(primaryNames, primaryPriority)
+	local activeSecondary = syncGroup(secondaryNames, secondaryPriority)
 	local activeMill = syncGroup(millNames, millPriority)
 
-	if selectedItem and weaponNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activeWeapon then
-		action:FireServer("SelectItem", activeWeapon)
+	if selectedItem and primaryNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activePrimary then
+		action:FireServer("SelectItem", activePrimary)
+	elseif selectedItem and secondaryNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activeSecondary then
+		action:FireServer("SelectItem", activeSecondary)
 	elseif selectedItem and millNames[selectedItem] and currentProfile.Unlocks[selectedItem] ~= true and activeMill then
 		action:FireServer("SelectItem", activeMill)
 	end
