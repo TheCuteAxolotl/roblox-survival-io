@@ -5,8 +5,8 @@ local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 
 local errors = {}
 
-if type(ExpansionData.SpawnUnlockAge) ~= "number" or ExpansionData.SpawnUnlockAge < 2 then table.insert(errors, "SpawnUnlockAge must be age 2 or higher.") end
 if type(ExpansionData.DoorAccessModes) ~= "table" or #ExpansionData.DoorAccessModes < 2 then table.insert(errors, "Door access modes are missing.") end
+if type(ExpansionData.VillageCount) ~= "number" or ExpansionData.VillageCount < 1 then table.insert(errors, "VillageCount must be at least 1.") end
 
 for role, trades in ExpansionData.VillageTrades do
 	if type(trades) ~= "table" or #trades == 0 then table.insert(errors, `Trader role {role} has no trades.`) end
@@ -30,5 +30,5 @@ if #errors > 0 then
 else
 	local tradeCount = 0
 	for _, trades in ExpansionData.VillageTrades do tradeCount += #trades end
-	print(`[ExpansionConfigValidation] Passed: {tradeCount} villager trades, door permissions, spawn pad and boss validated.`)
+	print(`[ExpansionConfigValidation] Passed: {tradeCount} villager trades, village variation, clan doors and boss validated.`)
 end
