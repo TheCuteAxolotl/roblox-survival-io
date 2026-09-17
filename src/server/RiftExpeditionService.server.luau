@@ -137,6 +137,7 @@ local function resetRunPowers(player)
 	player:SetAttribute("RiftDamageMultiplier", 1)
 	player:SetAttribute("RiftDamageReduction", 0)
 	player:SetAttribute("RiftSpeedBonus", 0)
+	player:SetAttribute("RiftMaxHealthBonus", 0)
 	player:SetAttribute("RiftBossDamageMultiplier", 1)
 	player:SetAttribute("RiftGoldMultiplier", 1)
 	player:SetAttribute("RiftBloodRush", 0)
@@ -201,10 +202,11 @@ local function applyUpgrade(player, id)
 		restoreMovement(player)
 	elseif id == "GiantHeart" then
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		player:SetAttribute("RiftMaxHealthBonus", 25 * stack)
 		if hum then
 			local oldMax = hum.MaxHealth
-			hum.MaxHealth = 100 + 25 * stack
-			hum.Health = math.min(hum.MaxHealth, hum.Health + (hum.MaxHealth - oldMax))
+			hum.MaxHealth = math.max(hum.MaxHealth, (player:GetAttribute("RiftBaseMaxHealth") or 100) + 25 * stack)
+			hum.Health = math.min(hum.MaxHealth, hum.Health + math.max(0, hum.MaxHealth - oldMax))
 		end
 	elseif id == "BloodRush" then
 		player:SetAttribute("RiftBloodRush", 0.07 * stack)
