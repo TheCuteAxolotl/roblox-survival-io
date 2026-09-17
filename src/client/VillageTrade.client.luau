@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("SurvivalRemotes")
@@ -18,10 +19,14 @@ gui.Parent = player:WaitForChild("PlayerGui")
 local panel = Instance.new("Frame")
 panel.AnchorPoint = Vector2.new(0.5, 0.5)
 panel.Position = UDim2.fromScale(0.5, 0.5)
-panel.Size = UDim2.fromOffset(410, 360)
+panel.Size = UserInputService.TouchEnabled and UDim2.new(1, -28, 0, 360) or UDim2.fromOffset(410, 360)
 panel.BackgroundColor3 = Color3.fromRGB(23, 23, 27)
 panel.Visible = false
 panel.Parent = gui
+local limit = Instance.new("UISizeConstraint")
+limit.MaxSize = Vector2.new(410, 360)
+limit.MinSize = Vector2.new(300, 330)
+limit.Parent = panel
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 14)
 corner.Parent = panel
@@ -73,6 +78,7 @@ layout.Parent = list
 local function rebuild(role, trades)
 	for _, child in list:GetChildren() do if child:IsA("TextButton") then child:Destroy() end end
 	title.Text = string.upper(role) .. " TRADER"
+	status.TextColor3 = Color3.fromRGB(188, 188, 196)
 	status.Text = "Trade gold or survival materials. All trades are server-checked."
 	for index, trade in ipairs(trades or {}) do
 		local b = Instance.new("TextButton")
