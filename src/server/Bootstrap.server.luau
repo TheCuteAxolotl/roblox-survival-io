@@ -8,6 +8,7 @@ local ItemData = require(ReplicatedStorage.Shared.ItemData)
 local PlayerService = require(script.Parent.PlayerService)
 local WorldService = require(script.Parent.WorldService)
 local BuildService = require(script.Parent.BuildService)
+local HatService = require(script.Parent.HatService)
 local MonetizationService = require(script.Parent.MonetizationService)
 
 local oldRemotes = ReplicatedStorage:FindFirstChild("SurvivalRemotes")
@@ -47,6 +48,7 @@ local function sendState(player, message, fx)
 		Message = message,
 		FX = fx,
 		SelectedItem = selectedItems[player] or "Axe",
+		BuildCounts = BuildService.GetOwnedCounts(player),
 	})
 end
 
@@ -79,12 +81,26 @@ local function getSelectedWeapon(player)
 	return itemName, item
 end
 
-local function setupDeathDrops(player, character)
+local function waitForProfile(player)
+	for _ = 1, 50 do
+		if PlayerService.Get(player) then return true end
+		task.wait(0.1)
+	end
+	return false
+end
+
+local function applyCharacterSetup(player, character)
 	local humanoid = character:WaitForChild("Humanoid", 8)
 	if not humanoid then return end
+	if waitForProfile(player) then
+		local profile = PlayerService.Get(player)
+		HatService.Apply(player, profile and profile.EquippedHat or nil)
+	else
+		HatService.Apply(player, nil)
+	end
+
 	if humanoid:GetAttribute("DeathDropConnected") then return end
 	humanoid:SetAttribute("DeathDropConnected", true)
-
 	humanoid.Died:Connect(function()
 		local root = character:FindFirstChild("HumanoidRootPart")
 		local position = root and root.Position or Vector3.new(0, 3, 0)
@@ -97,9 +113,9 @@ end
 local function setupPlayer(player)
 	selectedItems[player] = "Axe"
 	player.CharacterAdded:Connect(function(character)
-		setupDeathDrops(player, character)
+		task.spawn(applyCharacterSetup, player, character)
 	end)
-	if player.Character then task.spawn(setupDeathDrops, player, player.Character) end
+	if player.Character then task.spawn(applyCharacterSetup, player, player.Character) end
 end
 
 Players.PlayerAdded:Connect(setupPlayer)
@@ -109,11 +125,34 @@ getState.OnServerInvoke = function(player)
 	return {
 		Profile = PlayerService.GetPublic(player),
 		SelectedItem = selectedItems[player] or "Axe",
+		BuildCounts = BuildService.GetOwnedCounts(player),
 	}
 end
 
 getShop.OnServerInvoke = function()
 	return MonetizationService.GetCatalog()
+end
+
+local function applyGatherHatBonus(player, changes)
+	if type(changes) ~= "table" then return changes end
+	if changes.Wood and changes.Wood > 0 then
+		local multiplier = PlayerService.GetHatEffect(player, "WoodMultiplier", 1)
+		changes.Wood = math.max(changes.Wood, math.floor(changes.Wood * multiplier + 0.5))
+	end
+	if changes.Stone and changes.Stone > 0 then
+		local multiplier = PlayerService.GetHatEffect(player, "StoneMultiplier", 1)
+		changes.Stone = math.max(changes.Stone, math.floor(changes.Stone * multiplier + 0.5))
+	end
+	return changes
+end
+
+local function salvageText(salvage)
+	local pieces = {}
+	for _, resource in { "Wood", "Stone", "Food", "Gold" } do
+		local amount = salvage and salvage[resource] or 0
+		if amount and amount > 0 then table.insert(pieces, `+{amount} {resource:lower()}`) end
+	end
+	return table.concat(pieces, "  ")
 end
 
 action.OnServerEvent:Connect(function(player, actionName, payload)
@@ -135,6 +174,26 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		return
 	end
 
+	if actionName == "BuyHat" then
+		local success, message = PlayerService.BuyHat(player, payload)
+		if success then
+			local profile = PlayerService.Get(player)
+			HatService.Apply(player, profile and profile.EquippedHat or nil)
+		end
+		sendState(player, message, success and { Kind = "Hat" } or nil)
+		return
+	end
+
+	if actionName == "EquipHat" then
+		local success, message = PlayerService.EquipHat(player, payload)
+		if success then
+			local profile = PlayerService.Get(player)
+			HatService.Apply(player, profile and profile.EquippedHat or nil)
+		end
+		sendState(player, message, success and { Kind = "Hat" } or nil)
+		return
+	end
+
 	if actionName == "Gather" then
 		local _, weapon = getSelectedWeapon(player)
 		if not ready(player, "Gather", weapon.Cooldown or Config.GatherCooldown) then return end
@@ -143,7 +202,6 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 			sendState(player, "Move closer to gather.")
 			return
 		end
-
 		local targetModel = target and target:FindFirstAncestorOfClass("Model")
 		local resourceType = targetModel and targetModel:GetAttribute("Resource")
 		local lastMessage = nil
@@ -151,6 +209,7 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		for _ = 1, math.max(1, weapon.GatherHits or 1) do
 			local changes, message = WorldService.Gather(target)
 			if changes then
+				applyGatherHatBonus(player, changes)
 				PlayerService.Add(player, changes)
 				anySuccess = true
 				lastMessage = message
@@ -173,14 +232,14 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local victim = character and Players:GetPlayerFromCharacter(character)
 		if humanoid and victim and victim ~= player and humanoid.Health > 0 then
+			local multiplier = PlayerService.GetHatEffect(player, "DamageMultiplier", 1)
+			local damage = math.floor((weapon.Damage or Config.PlayerDamage) * multiplier + 0.5)
 			local wasAlive = humanoid.Health > 0
-			humanoid:TakeDamage(weapon.Damage or Config.PlayerDamage)
+			humanoid:TakeDamage(damage)
 			PlayerService.Add(player, { XP = 4 })
 			local killed = wasAlive and humanoid.Health <= 0
-			if killed then
-				PlayerService.Add(player, { Gold = 35, XP = 30 })
-			end
-			sendState(player, killed and "KO! +35 gold" or `Hit for {weapon.Damage or Config.PlayerDamage}!`, { Kind = killed and "KO" or "Hit", Position = target.Position })
+			if killed then PlayerService.Add(player, { Gold = 35, XP = 30 }) end
+			sendState(player, killed and "KO! +35 gold" or `Hit for {damage}!`, { Kind = killed and "KO" or "Hit", Position = target.Position })
 		end
 	elseif actionName == "AttackBuild" then
 		local _, weapon = getSelectedWeapon(player)
@@ -190,20 +249,16 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		if not CollectionService:HasTag(target, "PlayerBuild") then return end
 		local model = target:FindFirstAncestorOfClass("Model")
 		if not model then return end
-		if model:GetAttribute("OwnerUserId") == player.UserId then
-			sendState(player, "You cannot damage your own build.")
-			return
-		end
-		local damage = weapon.BuildDamage or Config.BuildDamage
-		local health = (model:GetAttribute("Health") or 1) - damage
-		model:SetAttribute("Health", health)
-		if health <= 0 then
-			local pos = model.PrimaryPart and model.PrimaryPart.Position or target.Position
-			model:Destroy()
-			PlayerService.Add(player, { XP = 8 })
-			sendState(player, "Structure destroyed!", { Kind = "Break", Position = pos })
+		local wasOwn = model:GetAttribute("OwnerUserId") == player.UserId
+		local destroyed, salvage, message = BuildService.DamageBuild(player, model, weapon.BuildDamage or Config.BuildDamage)
+		if destroyed then
+			PlayerService.Add(player, salvage or {})
+			if not wasOwn then PlayerService.Add(player, { XP = 8 }) end
+			local extra = salvageText(salvage)
+			if extra ~= "" then message = `{message}  {extra}` end
+			sendState(player, message, { Kind = "Break", Position = target.Position })
 		else
-			sendState(player, `Structure: {math.max(0, health)} HP`, { Kind = "Hit", Position = target.Position })
+			sendState(player, message, { Kind = "Hit", Position = target.Position })
 		end
 	elseif actionName == "Eat" then
 		if not ready(player, "Eat", 0.35) then return end
@@ -221,6 +276,11 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		local item = ItemData.Items[buildType]
 		if not item or item.Category ~= "Build" or not PlayerService.HasUnlock(player, buildType) then
 			sendState(player, "That building is not unlocked.")
+			return
+		end
+		local allowed, reason = BuildService.CanPlace(player, buildType, payload.Position, payload.Rotation)
+		if not allowed then
+			sendState(player, reason)
 			return
 		end
 		local cost = item.Cost or {}
