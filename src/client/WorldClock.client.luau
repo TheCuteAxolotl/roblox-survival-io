@@ -13,9 +13,9 @@ gui.Parent = player:WaitForChild("PlayerGui")
 local label = Instance.new("TextLabel")
 label.Name = "WorldClock"
 label.AnchorPoint = Vector2.new(0, 0)
--- Keep the clock under the survival bars on the left side. The right side is
--- reserved for BAG/CRAFT/KITS/ACTION controls and was covering the old clock.
-label.Position = UDim2.fromOffset(16, 262)
+-- Left-side HUD stack: needs end near y=252, quick-eat occupies about y=260-296,
+-- so the world clock starts beneath both and never competes with right-side buttons.
+label.Position = UDim2.fromOffset(16, 304)
 label.Size = UDim2.fromOffset(250, 46)
 label.BackgroundColor3 = Color3.fromRGB(20, 20, 23)
 label.BackgroundTransparency = 0.05
