@@ -1,3 +1,4 @@
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -5,6 +6,9 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local PlayerService = require(script.Parent.PlayerService)
 local WorldService = require(script.Parent.WorldService)
 local MonetizationService = require(script.Parent.MonetizationService)
+
+local oldRemotes = ReplicatedStorage:FindFirstChild("SurvivalRemotes")
+if oldRemotes then oldRemotes:Destroy() end
 
 local remotes = Instance.new("Folder")
 remotes.Name = "SurvivalRemotes"
@@ -32,10 +36,11 @@ MonetizationService.Init(PlayerService)
 
 local cooldowns = {}
 
-local function sendState(player, message)
+local function sendState(player, message, fx)
 	stateChanged:FireClient(player, {
 		Profile = PlayerService.GetPublic(player),
 		Message = message,
+		FX = fx,
 	})
 end
 
@@ -57,6 +62,31 @@ local function validDistance(player, target, maxDistance)
 	return (root.Position - target.Position).Magnitude <= maxDistance
 end
 
+local function setupDeathDrops(player, character)
+	local humanoid = character:WaitForChild("Humanoid", 8)
+	if not humanoid then return end
+	if humanoid:GetAttribute("DeathDropConnected") then return end
+	humanoid:SetAttribute("DeathDropConnected", true)
+
+	humanoid.Died:Connect(function()
+		local root = character:FindFirstChild("HumanoidRootPart")
+		local position = root and root.Position or Vector3.new(0, 3, 0)
+		local drops = PlayerService.TakeDeathDrop(player, 0.35)
+		WorldService.CreateLootBag(position, drops)
+		sendState(player, "You dropped 35% of your carried resources.", { Kind = "Death" })
+	end)
+end
+
+local function setupPlayer(player)
+	player.CharacterAdded:Connect(function(character)
+		setupDeathDrops(player, character)
+	end)
+	if player.Character then task.spawn(setupDeathDrops, player, player.Character) end
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+for _, player in Players:GetPlayers() do setupPlayer(player) end
+
 getState.OnServerInvoke = function(player)
 	return PlayerService.GetPublic(player)
 end
@@ -77,7 +107,7 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		end
 		local changes, message = WorldService.Gather(target)
 		if changes then PlayerService.Add(player, changes) end
-		sendState(player, message)
+		sendState(player, message, target and { Kind = "Gather", Position = target.Position } or nil)
 	elseif actionName == "Attack" then
 		if not ready(player, "Attack", Config.AttackCooldown) then return end
 		local target = payload
@@ -86,22 +116,47 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local victim = character and Players:GetPlayerFromCharacter(character)
 		if humanoid and victim and victim ~= player and humanoid.Health > 0 then
-			humanoid:TakeDamage(22)
+			local wasAlive = humanoid.Health > 0
+			humanoid:TakeDamage(Config.PlayerDamage)
 			PlayerService.Add(player, { XP = 4 })
-			if humanoid.Health <= 0 then
+			local killed = wasAlive and humanoid.Health <= 0
+			if killed then
 				PlayerService.Add(player, { Gold = 35, XP = 30 })
 			end
-			sendState(player, "Hit!")
+			sendState(player, killed and "KO! +35 gold" or "Hit!", { Kind = killed and "KO" or "Hit", Position = target.Position })
+		end
+	elseif actionName == "AttackBuild" then
+		if not ready(player, "Attack", Config.AttackCooldown) then return end
+		local target = payload
+		if not validDistance(player, target, Config.AttackDistance) then return end
+		if not CollectionService:HasTag(target, "PlayerBuild") then return end
+		local model = target:FindFirstAncestorOfClass("Model")
+		if not model then return end
+		if model:GetAttribute("OwnerUserId") == player.UserId then
+			sendState(player, "You cannot damage your own build.")
+			return
+		end
+		local health = (model:GetAttribute("Health") or 1) - Config.BuildDamage
+		model:SetAttribute("Health", health)
+		if health <= 0 then
+			local pos = model.PrimaryPart and model.PrimaryPart.Position or target.Position
+			model:Destroy()
+			PlayerService.Add(player, { XP = 8 })
+			sendState(player, "Structure destroyed!", { Kind = "Break", Position = pos })
+		else
+			sendState(player, `Structure: {math.max(0, health)} HP`, { Kind = "Hit", Position = target.Position })
 		end
 	elseif actionName == "Eat" then
+		if not ready(player, "Eat", 0.35) then return end
 		local profile = PlayerService.Get(player)
 		local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if profile and humanoid and humanoid.Health > 0 and humanoid.Health < humanoid.MaxHealth and profile.Food > 0 then
 			PlayerService.Add(player, { Food = -1 })
-			humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + 28)
-			sendState(player, "Ate food and healed.")
+			humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + Config.FoodHeal)
+			sendState(player, "Ate food and healed.", { Kind = "Heal" })
 		end
 	elseif actionName == "Build" then
+		if not ready(player, "Build", 0.18) then return end
 		if type(payload) ~= "table" then return end
 		local buildType = payload.Type
 		local cost = Config.BuildCosts[buildType]
@@ -115,7 +170,7 @@ action.OnServerEvent:Connect(function(player, actionName, payload)
 			for resource, amount in cost do refund[resource] = amount end
 			PlayerService.Add(player, refund)
 		end
-		sendState(player, message)
+		sendState(player, message, created and { Kind = "Build", Position = payload.Position } or nil)
 	end
 end)
 
