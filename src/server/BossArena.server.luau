@@ -45,7 +45,6 @@ local function buildArena()
 		local theta = math.rad(i * (360 / 16))
 		local pos = center + Vector3.new(math.cos(theta) * arenaRadius, 3, math.sin(theta) * arenaRadius)
 		local wall = part(model, "RingWall", Vector3.new(11, 6, 2), CFrame.new(pos) * CFrame.Angles(0, -theta + math.rad(90), 0), Color3.fromRGB(78, 80, 86), Enum.Material.Slate)
-		-- Leave two opposite entrances.
 		if i == 4 or i == 12 then wall:Destroy() end
 	end
 	local sign = part(model, "BossSign", Vector3.new(12, 5, 1), CFrame.new(center + Vector3.new(0, 3, -47)), Color3.fromRGB(93, 66, 45), Enum.Material.WoodPlanks)
@@ -76,6 +75,11 @@ local function nearestPlayer(position, range)
 	return best, bestDistance
 end
 
+local function adjustedDamage(player, damage)
+	local reduction = math.clamp(player:GetAttribute("ArmorReduction") or 0, 0, 0.65)
+	return math.max(1, math.floor((damage or 0) * (1 - reduction) + 0.5))
+end
+
 local function spawnBoss()
 	if bossModel and bossModel.Parent then return end
 	local world = Workspace:FindFirstChild("SurvivalArena")
@@ -91,6 +95,7 @@ local function spawnBoss()
 	root.Transparency = 1
 	root.CanCollide = true
 	model.PrimaryPart = root
+	pcall(function() root:SetNetworkOwner(nil) end)
 	local body = part(model, "Body", Vector3.new(8, 7, 6), root.CFrame * CFrame.new(0, 1.2, 0), Color3.fromRGB(92, 96, 101), Enum.Material.Slate, false)
 	body.CanCollide = false
 	body.Massless = true
@@ -120,9 +125,7 @@ local function spawnBoss()
 	hum.Died:Connect(function()
 		local attackerId = model:GetAttribute("LastAttackerUserId")
 		local attacker = attackerId and Players:GetPlayerByUserId(attackerId)
-		if attacker then
-			PlayerService.Add(attacker, { Gold = data.GoldReward, XP = data.XPReward })
-		end
+		if attacker then PlayerService.Add(attacker, { Gold = data.GoldReward, XP = data.XPReward }) end
 		task.delay(2, function() if model.Parent then model:Destroy() end end)
 		task.delay(data.RespawnSeconds, spawnBoss)
 	end)
@@ -138,7 +141,7 @@ local function spawnBoss()
 					hum:MoveTo(targetRoot.Position)
 					if distance <= data.AttackRange and os.clock() - lastAttack >= data.AttackCooldown then
 						lastAttack = os.clock()
-						targetHum:TakeDamage(data.Damage)
+						targetHum:TakeDamage(adjustedDamage(target, data.Damage))
 					end
 				end
 			else
