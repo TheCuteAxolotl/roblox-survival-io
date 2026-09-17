@@ -13,8 +13,8 @@ if not remote then
 	remote.Parent = remotes
 end
 
-local BASE_COOLDOWN = 2.15
-local BASE_SPEED = 58
+local BASE_COOLDOWN = 1.75
+local BASE_SPEED = 70
 local cooldowns = {}
 
 local function horizontalUnit(direction)
