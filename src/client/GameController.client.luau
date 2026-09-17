@@ -29,11 +29,51 @@ local hotbarButtons = {}
 local unlockedOrder = {}
 local choiceSignature = nil
 
+local cameraModes = {
+	{ Name = "TACTICAL", Offset = Vector3.new(0, 50, 40), LookHeight = 0 },
+	{ Name = "ADVENTURE", Offset = Vector3.new(0, 31, 31), LookHeight = 1.5 },
+	{ Name = "CLOSE", Offset = Vector3.new(0, 18, 20), LookHeight = 2.2 },
+}
+local cameraModeIndex = 1
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "SurvivalHUD"
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = player:WaitForChild("PlayerGui")
+
+local cameraModeButton = Instance.new("TextButton")
+cameraModeButton.Name = "CameraModeButton"
+cameraModeButton.AnchorPoint = Vector2.new(1, 0)
+cameraModeButton.Position = UDim2.new(1, -18, 0, 18)
+cameraModeButton.Size = UDim2.fromOffset(132, 34)
+cameraModeButton.BackgroundColor3 = Color3.fromRGB(25, 25, 31)
+cameraModeButton.BackgroundTransparency = 0.22
+cameraModeButton.TextColor3 = Color3.fromRGB(235, 235, 242)
+cameraModeButton.Font = Enum.Font.GothamBold
+cameraModeButton.TextSize = 10
+cameraModeButton.ZIndex = 45
+cameraModeButton.Parent = gui
+local cameraCorner = Instance.new("UICorner")
+cameraCorner.CornerRadius = UDim.new(0, 9)
+cameraCorner.Parent = cameraModeButton
+local cameraStroke = Instance.new("UIStroke")
+cameraStroke.Color = Color3.fromRGB(255, 255, 255)
+cameraStroke.Transparency = 0.86
+cameraStroke.Parent = cameraModeButton
+
+local function refreshCameraModeButton()
+	local mode = cameraModes[cameraModeIndex]
+	cameraModeButton.Text = UserInputService.TouchEnabled and ("CAMERA: " .. mode.Name) or ("CAMERA: " .. mode.Name .. " [C]")
+end
+
+local function cycleCameraMode()
+	cameraModeIndex = cameraModeIndex % #cameraModes + 1
+	refreshCameraModeButton()
+end
+
+cameraModeButton.Activated:Connect(cycleCameraMode)
+refreshCameraModeButton()
 
 local function corner(instance, radius)
 	local c = Instance.new("UICorner")
@@ -823,7 +863,9 @@ UserInputService.InputBegan:Connect(function(input, processed)
 			return
 		end
 	end
-	if input.KeyCode == Enum.KeyCode.Q then
+	if input.KeyCode == Enum.KeyCode.C then
+		cycleCameraMode()
+	elseif input.KeyCode == Enum.KeyCode.Q then
 		action:FireServer("Eat")
 	elseif input.KeyCode == Enum.KeyCode.R then
 		local item = ItemData.Items[selectedItem]
@@ -859,8 +901,10 @@ RunService.RenderStepped:Connect(function()
 	camera = workspace.CurrentCamera
 	if camera then
 		camera.CameraType = Enum.CameraType.Scriptable
-		local offset = Vector3.new(0, 50, 40)
-		camera.CFrame = CFrame.lookAt(root.Position + offset, root.Position)
+		local mode = cameraModes[cameraModeIndex]
+		local focus = root.Position + Vector3.new(0, mode.LookHeight or 0, 0)
+		local target = CFrame.lookAt(root.Position + mode.Offset, focus)
+		camera.CFrame = camera.CFrame:Lerp(target, 0.22)
 	end
 
 	updatePlacementPreview()
