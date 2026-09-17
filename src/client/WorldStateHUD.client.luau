@@ -1,3 +1,4 @@
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -14,7 +15,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 local card = Instance.new("Frame")
 card.AnchorPoint = Vector2.new(0.5, 0)
 card.Position = UDim2.new(0.5, 0, 0, 16)
-card.Size = UDim2.fromOffset(350, 46)
+card.Size = UDim2.fromOffset(420, 46)
 card.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
 card.BackgroundTransparency = 0.16
 card.BorderSizePixel = 0
@@ -29,21 +30,21 @@ stroke.Parent = card
 
 local phaseLabel = Instance.new("TextLabel")
 phaseLabel.Position = UDim2.fromOffset(12, 5)
-phaseLabel.Size = UDim2.new(0.58, -12, 0, 24)
+phaseLabel.Size = UDim2.new(0.72, -12, 0, 24)
 phaseLabel.BackgroundTransparency = 1
 phaseLabel.TextColor3 = Color3.fromRGB(245, 245, 248)
 phaseLabel.Font = Enum.Font.GothamBold
-phaseLabel.TextSize = 13
+phaseLabel.TextSize = 12
 phaseLabel.TextXAlignment = Enum.TextXAlignment.Left
 phaseLabel.Parent = card
 
 local threatLabel = Instance.new("TextLabel")
 threatLabel.AnchorPoint = Vector2.new(1, 0)
 threatLabel.Position = UDim2.new(1, -12, 0, 5)
-threatLabel.Size = UDim2.new(0.42, 0, 0, 24)
+threatLabel.Size = UDim2.new(0.28, 0, 0, 24)
 threatLabel.BackgroundTransparency = 1
 threatLabel.Font = Enum.Font.GothamBold
-threatLabel.TextSize = 11
+threatLabel.TextSize = 10
 threatLabel.TextXAlignment = Enum.TextXAlignment.Right
 threatLabel.Parent = card
 
@@ -104,6 +105,16 @@ local bannerToken = 0
 local lastPhase = ReplicatedStorage:GetAttribute("WildforgePhase")
 local lastDay = ReplicatedStorage:GetAttribute("WildforgeDay")
 
+local function formatTime(clockTime)
+	local totalMinutes = math.floor((clockTime % 24) * 60 + 0.5)
+	local hour24 = math.floor(totalMinutes / 60) % 24
+	local minute = totalMinutes % 60
+	local suffix = hour24 >= 12 and "PM" or "AM"
+	local hour12 = hour24 % 12
+	if hour12 == 0 then hour12 = 12 end
+	return string.format("%d:%02d %s", hour12, minute, suffix)
+end
+
 local function phaseDescription(phase, event)
 	if phase == "Dawn" then return "You made it through the dark. Rebuild, hunt and explore." end
 	if phase == "Day" then return "Best time to gather, trade, build and travel." end
@@ -131,7 +142,9 @@ local function showBanner(phase, day, event)
 		TweenService:Create(banner, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
 		TweenService:Create(bannerTitle, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
 		TweenService:Create(bannerSub, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
-		task.delay(0.4, function() if token == bannerToken then banner.Visible = false end end)
+		task.delay(0.4, function()
+			if token == bannerToken then banner.Visible = false end
+		end)
 	end)
 end
 
@@ -144,12 +157,13 @@ local function refresh(forceBanner)
 	local remaining = math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow()))
 	local event = ReplicatedStorage:GetAttribute("WildforgeEvent") or ""
 
-	phaseLabel.Text = `DAY {day}  •  {string.upper(phase)}  •  {remaining}s`
+	phaseLabel.Text = `DAY {day}  •  {string.upper(phase)}  •  {formatTime(Lighting.ClockTime)}  •  {remaining}s`
 	local phaseColor = phaseColors[phase] or Color3.new(1, 1, 1)
 	progressFill.BackgroundColor3 = phaseColor
 	progressFill.Size = UDim2.fromScale(progress, 1)
 	threatLabel.Text = `THREAT {threat}/6`
-	threatLabel.TextColor3 = threat >= 5 and Color3.fromRGB(245, 116, 106) or (threat >= 3 and Color3.fromRGB(244, 188, 102) or Color3.fromRGB(170, 205, 170))
+	threatLabel.TextColor3 = threat >= 5 and Color3.fromRGB(245, 116, 106)
+		or (threat >= 3 and Color3.fromRGB(244, 188, 102) or Color3.fromRGB(170, 205, 170))
 
 	if forceBanner or phase ~= lastPhase or day ~= lastDay then
 		lastPhase, lastDay = phase, day
@@ -158,7 +172,9 @@ local function refresh(forceBanner)
 end
 
 for _, attribute in { "WildforgeDay", "WildforgePhase", "WildforgeThreat", "WildforgeEvent" } do
-	ReplicatedStorage:GetAttributeChangedSignal(attribute):Connect(function() refresh(true) end)
+	ReplicatedStorage:GetAttributeChangedSignal(attribute):Connect(function()
+		refresh(true)
+	end)
 end
 
 local timer = 0
