@@ -1,10 +1,12 @@
 local DataStoreService = game:GetService("DataStoreService")
 local Debris = game:GetService("Debris")
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local MonetizationConfig = require(ReplicatedStorage.Shared.MonetizationConfig)
 local SurvivalItemData = require(ReplicatedStorage.Shared.SurvivalItemData)
 
 local InventoryService = {}
@@ -14,6 +16,7 @@ InventoryService.Changed = Instance.new("BindableEvent")
 local inventories = {}
 local store = nil
 local persistenceEnabled = false
+local insuranceCache = {}
 
 local function deepCopy(value)
 	if type(value) ~= "table" then return value end
@@ -35,7 +38,15 @@ local function sanitizeSlots(raw)
 		local slot = raw[i]
 		if type(slot) == "table" and type(slot.Item) == "string" and SurvivalItemData.Items[slot.Item] then
 			local amount = math.clamp(math.floor(tonumber(slot.Amount) or 0), 0, SurvivalItemData.StackLimit(slot.Item))
-			if amount > 0 then slots[i] = { Item = slot.Item, Amount = amount } end
+			if amount > 0 then
+				local protected = math.clamp(math.floor(tonumber(slot.Protected) or 0), 0, amount)
+				slots[i] = {
+					Item = slot.Item,
+					Amount = amount,
+					Protected = protected,
+					Source = type(slot.Source) == "string" and slot.Source or nil,
+				}
+			end
 		end
 	end
 	return slots
@@ -51,7 +62,7 @@ local function tryEnableStore()
 		return
 	end
 	local ok, result = pcall(function()
-		return DataStoreService:GetDataStore("SurvivalIO_Inventory_v1")
+		return DataStoreService:GetDataStore("SurvivalIO_Inventory_v2")
 	end)
 	if ok then
 		store = result
@@ -59,6 +70,25 @@ local function tryEnableStore()
 	else
 		warn("[InventoryService] Inventory DataStore unavailable:", result)
 	end
+end
+
+local function ownsInsurance(player)
+	if insuranceCache[player] ~= nil then return insuranceCache[player] end
+	local pass = MonetizationConfig.GamePasses and MonetizationConfig.GamePasses.InventoryInsurance
+	if not pass or not pass.Id or pass.Id <= 0 then
+		insuranceCache[player] = false
+		return false
+	end
+	local ok, owned = pcall(function()
+		return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.Id)
+	end)
+	insuranceCache[player] = ok and owned == true
+	return insuranceCache[player]
+end
+
+function InventoryService.RefreshEntitlements(player)
+	insuranceCache[player] = nil
+	return ownsInsurance(player)
 end
 
 function InventoryService.Load(player)
@@ -115,24 +145,42 @@ function InventoryService.HasItems(player, requirements)
 	return true
 end
 
-local function simulateAdd(slots, itemName, amount)
+local function simulateAdd(slots, itemName, amount, source)
 	local copy = deepCopy(slots)
 	local stackLimit = SurvivalItemData.StackLimit(itemName)
 	local remaining = amount
+	local protectedAdd = source ~= nil
+
+	-- Keep protected kit stacks separate from normal loot so death handling is exact.
 	for i = 1, InventoryService.SLOT_COUNT do
 		local slot = copy[i]
-		if slot and slot.Item == itemName and slot.Amount < stackLimit then
+		local compatible = slot and slot.Item == itemName and slot.Amount < stackLimit
+		if compatible then
+			if protectedAdd then
+				compatible = slot.Source == source and (slot.Protected or 0) == slot.Amount
+			else
+				compatible = (slot.Protected or 0) == 0 and slot.Source == nil
+			end
+		end
+		if compatible then
 			local room = stackLimit - slot.Amount
 			local moved = math.min(room, remaining)
 			slot.Amount += moved
+			if protectedAdd then slot.Protected = (slot.Protected or 0) + moved end
 			remaining -= moved
 			if remaining <= 0 then return true, copy end
 		end
 	end
+
 	for i = 1, InventoryService.SLOT_COUNT do
 		if copy[i] == false or copy[i] == nil then
 			local moved = math.min(stackLimit, remaining)
-			copy[i] = { Item = itemName, Amount = moved }
+			copy[i] = {
+				Item = itemName,
+				Amount = moved,
+				Protected = protectedAdd and moved or 0,
+				Source = source,
+			}
 			remaining -= moved
 			if remaining <= 0 then return true, copy end
 		end
@@ -140,24 +188,41 @@ local function simulateAdd(slots, itemName, amount)
 	return false, slots
 end
 
-function InventoryService.CanAdd(player, itemName, amount)
+function InventoryService.CanAdd(player, itemName, amount, source)
 	if not SurvivalItemData.Items[itemName] then return false end
 	local slots = inventories[player]
 	if not slots then return false end
-	local ok = simulateAdd(slots, itemName, math.max(1, math.floor(amount or 1)))
+	local ok = simulateAdd(slots, itemName, math.max(1, math.floor(amount or 1)), source)
 	return ok
 end
 
-function InventoryService.AddItem(player, itemName, amount, silent)
+function InventoryService.AddItem(player, itemName, amount, silent, source)
 	if not SurvivalItemData.Items[itemName] then return false, "Unknown item." end
 	local slots = inventories[player]
 	if not slots then return false, "Inventory is not ready." end
 	amount = math.max(1, math.floor(amount or 1))
-	local ok, nextSlots = simulateAdd(slots, itemName, amount)
+	local ok, nextSlots = simulateAdd(slots, itemName, amount, source)
 	if not ok then return false, "Inventory is full." end
 	inventories[player] = nextSlots
 	if not silent then fireChanged(player) end
 	return true
+end
+
+function InventoryService.AddProtectedItem(player, itemName, amount, source, silent)
+	source = source or "Protected"
+	return InventoryService.AddItem(player, itemName, amount, silent, source)
+end
+
+function InventoryService.ClearProtectedSource(player, sourcePrefix, silent)
+	local slots = inventories[player]
+	if not slots then return end
+	for i = 1, InventoryService.SLOT_COUNT do
+		local slot = slots[i]
+		if slot and type(slot.Source) == "string" and string.sub(slot.Source, 1, #sourcePrefix) == sourcePrefix then
+			slots[i] = false
+		end
+	end
+	if not silent then fireChanged(player) end
 end
 
 function InventoryService.RemoveItem(player, itemName, amount, silent)
@@ -166,18 +231,27 @@ function InventoryService.RemoveItem(player, itemName, amount, silent)
 	amount = math.max(1, math.floor(amount or 1))
 	if InventoryService.CountItem(player, itemName) < amount then return false end
 	local remaining = amount
-	for i = InventoryService.SLOT_COUNT, 1, -1 do
-		local slot = slots[i]
-		if slot and slot.Item == itemName then
-			local removed = math.min(slot.Amount, remaining)
-			slot.Amount -= removed
-			remaining -= removed
-			if slot.Amount <= 0 then slots[i] = false end
-			if remaining <= 0 then break end
+
+	-- Spend ordinary loot before protected kit items.
+	for pass = 1, 2 do
+		for i = InventoryService.SLOT_COUNT, 1, -1 do
+			local slot = slots[i]
+			if slot and slot.Item == itemName then
+				local isProtected = (slot.Protected or 0) > 0
+				if (pass == 1 and not isProtected) or (pass == 2 and isProtected) then
+					local removed = math.min(slot.Amount, remaining)
+					slot.Amount -= removed
+					if isProtected then slot.Protected = math.max(0, (slot.Protected or 0) - removed) end
+					remaining -= removed
+					if slot.Amount <= 0 then slots[i] = false end
+					if remaining <= 0 then break end
+				end
+			end
 		end
+		if remaining <= 0 then break end
 	end
 	if not silent then fireChanged(player) end
-	return true
+	return remaining <= 0
 end
 
 function InventoryService.RemoveFromSlot(player, slotIndex, amount, silent)
@@ -186,10 +260,13 @@ function InventoryService.RemoveFromSlot(player, slotIndex, amount, silent)
 	if not slot then return nil end
 	amount = math.clamp(math.floor(amount or 1), 1, slot.Amount)
 	local itemName = slot.Item
+	local protectedRemoved = math.min(slot.Protected or 0, amount)
+	local source = slot.Source
 	slot.Amount -= amount
+	slot.Protected = math.max(0, (slot.Protected or 0) - protectedRemoved)
 	if slot.Amount <= 0 then slots[slotIndex] = false end
 	if not silent then fireChanged(player) end
-	return itemName, amount
+	return itemName, amount, protectedRemoved, source
 end
 
 local function dropColor(itemName)
@@ -236,14 +313,18 @@ function InventoryService.CreateWorldDrop(position, itemName, amount)
 		end
 	end)
 
-	Debris:AddItem(model, 120)
+	Debris:AddItem(model, 90)
 	return model
 end
 
 function InventoryService.DropFromSlot(player, slotIndex, amount)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local slots = inventories[player]
+	local slot = slots and slots[slotIndex]
 	if not root then return false, "Character is not ready." end
+	if not slot then return false, "That slot is empty." end
+	if (slot.Protected or 0) > 0 then return false, "Protected kit items cannot be dropped." end
 	local itemName, removed = InventoryService.RemoveFromSlot(player, slotIndex, amount, true)
 	if not itemName then return false, "That slot is empty." end
 	InventoryService.CreateWorldDrop(root.Position + root.CFrame.LookVector * 4, itemName, removed)
@@ -253,13 +334,32 @@ end
 
 function InventoryService.ClearToWorld(player, position)
 	local slots = inventories[player]
-	if not slots then return end
+	if not slots then return { KeptAll = false, Dropped = 0 } end
+	if ownsInsurance(player) then
+		fireChanged(player)
+		return { KeptAll = true, Dropped = 0 }
+	end
+
+	local dropped = 0
 	for i = 1, InventoryService.SLOT_COUNT do
 		local slot = slots[i]
-		if slot then InventoryService.CreateWorldDrop(position, slot.Item, slot.Amount) end
-		slots[i] = false
+		if slot then
+			local protected = math.clamp(slot.Protected or 0, 0, slot.Amount)
+			local loose = slot.Amount - protected
+			if loose > 0 then
+				InventoryService.CreateWorldDrop(position, slot.Item, loose)
+				dropped += loose
+			end
+			if protected > 0 then
+				slot.Amount = protected
+				slot.Protected = protected
+			else
+				slots[i] = false
+			end
+		end
 	end
 	fireChanged(player)
+	return { KeptAll = false, Dropped = dropped }
 end
 
 function InventoryService.Init()
@@ -268,6 +368,7 @@ function InventoryService.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		InventoryService.Save(player)
 		inventories[player] = nil
+		insuranceCache[player] = nil
 	end)
 	for _, player in Players:GetPlayers() do task.spawn(InventoryService.Load, player) end
 
