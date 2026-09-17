@@ -8,7 +8,7 @@ local ItemData = require(ReplicatedStorage.Shared.ItemData)
 
 local BuildService = {}
 local BUILD_TAG = "PlayerBuild"
-local trapCooldowns = {}
+local trapCooldowns = setmetatable({}, { __mode = "k" })
 
 local function makePart(parent, name, size, position, color, material)
 	local p = Instance.new("Part")
@@ -49,16 +49,21 @@ function BuildService.CountOwned(player, buildType)
 end
 
 local function setupTrap(model, trigger, ownerUserId)
+	trapCooldowns[model] = {}
 	trigger.Touched:Connect(function(hit)
 		local character = hit:FindFirstAncestorOfClass("Model")
 		local victim = character and Players:GetPlayerFromCharacter(character)
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if not victim or victim.UserId == ownerUserId or not humanoid or humanoid.Health <= 0 then return end
 
-		local key = `{model:GetDebugId()}:{victim.UserId}`
+		local bucket = trapCooldowns[model]
+		if not bucket then
+			bucket = {}
+			trapCooldowns[model] = bucket
+		end
 		local now = os.clock()
-		if now - (trapCooldowns[key] or 0) < 2.5 then return end
-		trapCooldowns[key] = now
+		if now - (bucket[victim.UserId] or 0) < 2.5 then return end
+		bucket[victim.UserId] = now
 
 		humanoid:TakeDamage(18)
 		local oldSpeed = humanoid.WalkSpeed
@@ -161,7 +166,7 @@ function BuildService.PlaceBuild(player, buildType, position, rotation)
 		model.PrimaryPart = base
 		for _, z in { -0.75, 0.75 } do
 			local log = makePart(model, "Log", Vector3.new(4, 0.65, 0.65), Vector3.new(position.X, 0.7, position.Z + z), Color3.fromRGB(112, 74, 43), Enum.Material.Wood)
-			log.CFrame *= CFrame.Angles(0, math.rad(z > 0 and 32 or -32), 0)
+			log.CFrame = log.CFrame * CFrame.Angles(0, math.rad(z > 0 and 32 or -32), 0)
 		end
 		local flame = makePart(model, "Flame", Vector3.new(1.5, 2.5, 1.5), Vector3.new(position.X, 2, position.Z), Color3.fromRGB(255, 153, 52), Enum.Material.Neon)
 		flame.Shape = Enum.PartType.Ball
