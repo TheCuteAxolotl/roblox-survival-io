@@ -79,9 +79,9 @@ function WorldService.BuildArena()
 	local ground = part(arena, "Ground", Vector3.new(Config.WorldSize, 1, Config.WorldSize), Vector3.new(0, -0.5, 0), Color3.fromRGB(116, 170, 89), Enum.Material.Grass)
 	ground.CanCollide = true
 
-	for i = 1, 44 do makeResource("Tree", randomGroundPoint(20)) end
-	for i = 1, 30 do makeResource("Rock", randomGroundPoint(20)) end
-	for i = 1, 26 do makeResource("Berry", randomGroundPoint(20)) end
+	for _ = 1, 44 do makeResource("Tree", randomGroundPoint(20)) end
+	for _ = 1, 30 do makeResource("Rock", randomGroundPoint(20)) end
+	for _ = 1, 26 do makeResource("Berry", randomGroundPoint(20)) end
 
 	for _, pos in {
 		Vector3.new(-35, 1, -35), Vector3.new(35, 1, -35), Vector3.new(-35, 1, 35), Vector3.new(35, 1, 35), Vector3.new(0, 1, 0),
@@ -114,14 +114,20 @@ function WorldService.Gather(target)
 		model:SetAttribute("Alive", false)
 		amount += model:GetAttribute("Yield") or 0
 		for _, child in model:GetDescendants() do
-			if child:IsA("BasePart") then child.Transparency = 1 child.CanCollide = false end
+			if child:IsA("BasePart") then
+				child.Transparency = 1
+				child.CanCollide = false
+			end
 		end
 		task.delay(12, function()
 			if model.Parent then
 				model:SetAttribute("Health", model:GetAttribute("MaxHealth"))
 				model:SetAttribute("Alive", true)
 				for _, child in model:GetDescendants() do
-					if child:IsA("BasePart") then child.Transparency = 0 child.CanCollide = true end
+					if child:IsA("BasePart") then
+						child.Transparency = 0
+						child.CanCollide = true
+					end
 				end
 			end
 		end)
