@@ -296,7 +296,11 @@ local function render(state)
 		sub.Text = string.format("%s  •  Friends can join at the same gate.", state.ModifierLabel or "STABLE RIFT")
 	elseif inRun then
 		title.Text = string.format("RIFT // STAGE %d OF %d", state.Stage or 0, RiftData.MaxStages)
-		status.Text = string.format("%s  •  %d ENEMIES", state.StageLabel or "", state.LiveEnemies or 0)
+		if (state.StageTimeRemaining or 0) > 0 then
+			status.Text = string.format("%s  •  SURVIVE %ds  •  %d ACTIVE", state.StageLabel or "", state.StageTimeRemaining, state.LiveEnemies or 0)
+		else
+			status.Text = string.format("%s  •  %d ENEMIES", state.StageLabel or "", state.LiveEnemies or 0)
+		end
 		if state.ExtractAvailable then
 			sub.Text = "SAFE EXTRACTION OPEN • leave with your bank, or push deeper."
 			sub.TextColor3 = Color3.fromRGB(255, 211, 115)
